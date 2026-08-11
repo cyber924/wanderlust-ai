@@ -1,0 +1,32 @@
+{
+  "entities": {
+    "travel_blog_posts": {
+      "title": "Travel Blog Posts",
+      "description": "Generated and saved travel blog posts",
+      "properties": {
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "destination": { "type": "string" },
+        "duration": { "type": "string" },
+        "concept": { "type": "string" },
+        "tone": { "type": "string" },
+        "targetAudience": { "type": "string" },
+        "budget": { "type": "string" },
+        "season": { "type": "string" },
+        "metaKeywords": { "type": "array", "items": { "type": "string" } },
+        "hashtags": { "type": "array", "items": { "type": "string" } },
+        "itinerary": { "type": "array", "items": { "type": "object" } },
+        "markdownContent": { "type": "string" },
+        "travelTips": { "type": "array", "items": { "type": "string" } },
+        "seoDescription": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "views": { "type": "number" },
+        "likes": { "type": "number" },
+        "status": { "type": "string" },
+        "coverImageUrl": { "type": "string" }
+      },
+      "required": ["title", "destination", "markdownContent"]
+    }
+  }
+}
