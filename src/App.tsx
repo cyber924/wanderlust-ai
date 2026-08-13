@@ -20,6 +20,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<
     "generator" | "image-generator" | "templates" | "posts" | "auth"
   >("generator");
+  const [categoryType, setCategoryType] = useState<"travel" | "life_info">("travel");
   const [currentPost, setCurrentPost] = useState<BlogPost | null>(null);
   const [savedPosts, setSavedPosts] = useState<BlogPost[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<TravelTemplate | null>(null);
@@ -152,9 +153,14 @@ export default function App() {
           activeTab={activeTab}
           setActiveTab={(tab) => {
             setActiveTab(tab);
-            if (tab === "generator" && currentPost) {
-              // Stay on post view or back to generator form if clicked
+            if (tab === "generator") {
+              setCurrentPost(null);
             }
+          }}
+          categoryType={categoryType}
+          setCategoryType={(cat) => {
+            setCategoryType(cat);
+            setCurrentPost(null);
           }}
           user={user}
           onOpenAuth={() => setIsAuthModalOpen(true)}
@@ -185,6 +191,8 @@ export default function App() {
                   onBlogGenerated={handleBlogGenerated}
                   selectedTemplate={selectedTemplate}
                   onClearTemplate={() => setSelectedTemplate(null)}
+                  categoryType={categoryType}
+                  onCategoryTypeChange={setCategoryType}
                 />
               )}
             </>

@@ -2,18 +2,20 @@ export interface BlogPost {
   id: string;
   title: string;
   subtitle: string;
-  destination: string;
-  duration: string; // e.g., "3박 4일"
-  concept: string; // e.g., "감성 카페 & 해안도로 투어"
+  destination: string; // Used as location for travel, or topic name for life info
+  duration: string; // e.g., "3박 4일" or "소요시간 5분"
+  concept: string; // e.g., "감성 카페 & 해안도로 투어" or "살림/청소 꿀팁"
   tone: string; // e.g., "인스타그램 감성 / 친근한 어조"
-  targetAudience: string; // e.g., "커플, 2030 여행객"
-  budget: string; // e.g., "인당 약 40만원"
-  season: string; // e.g., "봄/가을 추천"
+  targetAudience: string; // e.g., "커플, 2030 여행객" or "자취생, 주부"
+  budget: string; // e.g., "인당 약 40만원" or "비용 0원 (집에 있는 재료)"
+  season: string; // e.g., "봄/가을 추천" or "사계절 유용"
+  categoryType?: "travel" | "life_info";
+  categoryName?: string; // e.g. "청소/살림", "절약/재테크", "요리/레시피"
   metaKeywords: string[];
   hashtags: string[];
   coverImageUrl?: string;
   
-  // Structured Itinerary
+  // Structured Itinerary / Step-by-Step Guide
   itinerary: {
     day: number;
     title: string;
@@ -29,7 +31,7 @@ export interface BlogPost {
   // Full Markdown Body Content
   markdownContent: string;
 
-  // Travel Tips Callout
+  // Travel/Life Tips Callout
   travelTips: string[];
 
   // SEO Description
@@ -46,19 +48,22 @@ export interface BlogPost {
 }
 
 export interface GenerateBlogRequest {
-  destination: string;
+  categoryType?: "travel" | "life_info";
+  destination: string; // Destination or Main Topic
   duration?: string;
-  travelStyle?: string; // e.g. "감성 여행", "식도락/맛집", "휴양/힐링", "배낭여행/가성비", "가족여행"
+  travelStyle?: string; // Travel style or Life Info category
   keywords?: string[];
-  tone?: string; // e.g. "친근하고 감성적인 체 (해요체)", "전문적이고 상세한 가이드", "위트있고 발랄한 어조"
+  tone?: string;
   specificSpots?: string;
   language?: string;
   includeImages?: boolean;
+  targetAudience?: string;
 }
 
 export interface TravelTemplate {
   id: string;
   title: string;
+  categoryType?: "travel" | "life_info";
   destination: string;
   style: string;
   icon: string;

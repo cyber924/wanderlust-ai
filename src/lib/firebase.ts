@@ -5,6 +5,9 @@ import {
   signInWithPopup,
   signOut,
   onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  updateProfile,
   User,
 } from "firebase/auth";
 import {
@@ -23,7 +26,17 @@ import {
 } from "firebase/firestore";
 import { BlogPost, UserProfile } from "../types";
 
-import firebaseConfig from "../../firebase-applet-config.json";
+import firebaseConfigJson from "../../firebase-applet-config.json";
+
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || firebaseConfigJson.apiKey,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || firebaseConfigJson.authDomain,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || firebaseConfigJson.projectId,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || firebaseConfigJson.storageBucket,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || firebaseConfigJson.messagingSenderId,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || firebaseConfigJson.appId,
+  firestoreDatabaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || firebaseConfigJson.firestoreDatabaseId || "(default)",
+};
 
 const app = !getApps().length
   ? initializeApp(firebaseConfig)
@@ -52,6 +65,29 @@ export async function loginWithGoogle() {
     return result.user;
   } catch (error) {
     console.error("Firebase Google Auth error:", error);
+    throw error;
+  }
+}
+
+export async function signUpWithEmail(email: string, pass: string, displayName?: string) {
+  try {
+    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+    if (displayName && cred.user) {
+      await updateProfile(cred.user, { displayName });
+    }
+    return cred.user;
+  } catch (error) {
+    console.error("Firebase Email SignUp error:", error);
+    throw error;
+  }
+}
+
+export async function loginWithEmail(email: string, pass: string) {
+  try {
+    const cred = await signInWithEmailAndPassword(auth, email, pass);
+    return cred.user;
+  } catch (error) {
+    console.error("Firebase Email Login error:", error);
     throw error;
   }
 }
