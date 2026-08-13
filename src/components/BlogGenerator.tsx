@@ -168,7 +168,17 @@ export const BlogGenerator: React.FC<BlogGeneratorProps> = ({
         body: JSON.stringify(requestPayload),
       });
 
-      const json = await res.json();
+      const responseText = await res.text();
+      let json: any = {};
+      try {
+        json = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("Non-JSON API response received:", responseText);
+        if (!res.ok) {
+          throw new Error(`서버 응답 오류 (${res.status}): Vercel Serverless 실행 실패 또는 타임아웃이 발생했습니다.`);
+        }
+        throw new Error("서버 응답 형식이 올바르지 않습니다.");
+      }
 
       if (!res.ok || !json.success) {
         throw new Error(json.error || "블로그 작성 중 오류가 발생했습니다.");

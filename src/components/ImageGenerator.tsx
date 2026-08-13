@@ -128,7 +128,14 @@ export const ImageGenerator: React.FC<ImageGeneratorProps> = ({
         }),
       });
 
-      const data = await response.json();
+      const responseText = await response.text();
+      let data: any = {};
+      try {
+        data = JSON.parse(responseText);
+      } catch (pErr) {
+        throw new Error("서버 응답 오류가 발생했습니다.");
+      }
+
       if (data.success && Array.isArray(data.images)) {
         setGeneratedImages(data.images);
         onShowToast(`🎉 AI 여행 사진 ${data.images.length}장이 성공적으로 생성되었습니다!`);
