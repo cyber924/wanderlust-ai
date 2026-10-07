@@ -1,6 +1,6 @@
 {
   "name": "Wanderlust AI - 여행 블로그 자동화",
-  "description": "제미나이 AI 기반 여행 블로그 글 자동 생성 및 파이어베이스 연동 풀스택 서비스",
+  "description": "AI 협업기반 여행 & 생활정보 블로그 작성, 고화질 스냅 연동, 공개 웹진 및 네이버/티스토리 출처 자동 동봉 퍼가기 플랫폼",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

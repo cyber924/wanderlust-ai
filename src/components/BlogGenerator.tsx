@@ -25,8 +25,8 @@ interface BlogGeneratorProps {
   onBlogGenerated: (blog: BlogPost) => void;
   selectedTemplate?: TravelTemplate | null;
   onClearTemplate?: () => void;
-  categoryType?: "travel" | "life_info";
-  onCategoryTypeChange?: (category: "travel" | "life_info") => void;
+  categoryType?: "travel" | "life_info" | "food" | "trend";
+  onCategoryTypeChange?: (category: "travel" | "life_info" | "food" | "trend") => void;
 }
 
 const QUICK_TRAVEL_TOPICS = [
@@ -36,6 +36,24 @@ const QUICK_TRAVEL_TOPICS = [
   "방콕 4박 5일 럭셔리 호캉스 & 루프탑 야경 스파",
   "교토 3박 4일 고즈넉한 대나무 숲 & 료칸 온천 코스",
   "다낭 3박 5일 바나힐 & 호이안 올드타운 밤거리",
+];
+
+const QUICK_FOOD_TOPICS = [
+  "성수동 오픈런 신상 베이커리 & 감성 카페 투어 BEST 5",
+  "을지로·종로 힙지로 골목 줄 서는 찐노포 & 야장 맛집 로드",
+  "연남동 골목 숨은 일식 다이닝 & 핸드드립 스페셜티 카페 탐방기",
+  "부산 광안리 오션뷰 브런치 & 자갈치 싱싱 해산물 미식 코스",
+  "수원 행궁동 감성 한옥 디저트 카페 & 통닭거리 먹방 투어",
+  "강릉 바다 앞 초당순두부 젤라또 & 커피거리 카페 투어",
+];
+
+const QUICK_TREND_TOPICS = [
+  "요즘 2030 대세 라이프스타일! 한강 야간 러닝 크루 & 플로깅 입문기",
+  "주말 도파민 디톡스! 스마트폰 끄고 떠나는 숲멍 & 북스테이 힐링",
+  "줄 서서 들어가는 주말 성수·더현대 한정판 팝업스토어 완벽 공략법",
+  "바다 보며 일하고 저녁엔 서핑! 제주·강릉 일주일 워케이션 실전 가이드",
+  "MZ세대가 열광하는 성수동 빈티지 숍 & 바이닐 레코드 바 탐방기",
+  "갓생러들의 아침 6시 미라클 모닝 & 나만의 웰니스 루틴 만들기",
 ];
 
 const QUICK_LIFE_TOPICS = [
@@ -48,11 +66,27 @@ const QUICK_LIFE_TOPICS = [
 ];
 
 const TRAVEL_STYLES = [
-  { id: "감성 카페 & 핫플", label: "☕ 감성 카페 & 핫플", icon: Camera },
-  { id: "식도락 & 맛집 탐방", label: "🍜 식도락 & 맛집", icon: Utensils },
-  { id: "휴양 & 럭셔리 호캉스", label: "🏊‍♂️ 휴양 & 호캉스", icon: Sun },
-  { id: "액티비티 & 배낭여행", label: "🎒 액티비티 & 배낭", icon: Backpack },
-  { id: "가족 & 아이 동반 코스", label: "👨‍👩‍👧‍👦 가족/아이 동반", icon: Users },
+  { id: "감성 카페 & 핫플", label: "☕ 감성 카페 & 핫플" },
+  { id: "식도락 & 맛집 탐방", label: "🍜 식도락 & 맛집" },
+  { id: "휴양 & 럭셔리 호캉스", label: "🏊‍♂️ 휴양 & 호캉스" },
+  { id: "액티비티 & 배낭여행", label: "🎒 액티비티 & 배낭" },
+  { id: "가족 & 아이 동반 코스", label: "👨‍👩‍👧‍👦 가족/아이 동반" },
+];
+
+const FOOD_STYLES = [
+  { id: "🥐 베이커리 & 디저트 카페", label: "🥐 베이커리 & 감성 디저트 카페" },
+  { id: "🍲 줄 서는 찐노포 & 야장", label: "🍲 줄 서는 찐노포 & 야장 맛집" },
+  { id: "🍱 일식/오마카세 & 다이닝", label: "🍱 일식/오마카세 & 파인다이닝" },
+  { id: "🥞 오션뷰 & 테라스 브런치", label: "🥞 오션뷰 & 테라스 브런치 카페" },
+  { id: "🍻 감성 펍 & 이자카야 술집", label: "🍻 감성 펍 & 이자카야 술자리" },
+];
+
+const TREND_STYLES = [
+  { id: "🏃‍♂️ 러닝 크루 & 웰니스", label: "🏃‍♂️ 2030 러닝 크루 & 오운완 웰니스" },
+  { id: "🌲 도파민 디톡스 & 숲멍", label: "🌲 도파민 디톡스 & 언플러그드 북스테이" },
+  { id: "🛍️ 팝업스토어 & 한정판 굿즈", label: "🛍️ 주말 팝업스토어 & 한정판 굿즈 성지" },
+  { id: "💻 디지털 노마드 & 워케이션", label: "💻 디지털 노마드 & 바닷가 워케이션" },
+  { id: "📸 인스타 핫플레이스 & 전시회", label: "📸 인스타 감성 핫플레이스 & 몰입형 전시" },
 ];
 
 const LIFE_INFO_CATEGORIES = [
@@ -72,6 +106,41 @@ const TONE_OPTIONS = [
   { id: "차분하고 알기 쉬운 요약 체", label: "차분하고 알기 쉬운 요약체" },
 ];
 
+const TRENDING_KEYWORDS_BY_CATEGORY = {
+  travel: [
+    { word: "한달살기", volume: "125K", competition: "상위 노출 용이", trend: "up" },
+    { word: "가성비독채", volume: "84K", competition: "중간", trend: "up" },
+    { word: "숨은명소", volume: "192K", competition: "상위 노출 용이", trend: "up" },
+    { word: "뚜벅이코스", volume: "62K", competition: "낮음 (강력 추천)", trend: "up" },
+    { word: "인생샷포토존", volume: "140K", competition: "중간", trend: "up" },
+    { word: "혼자여행", volume: "95K", competition: "낮음 (강력 추천)", trend: "steady" },
+  ],
+  food: [
+    { word: "오픈런베이커리", volume: "155K", competition: "낮음 (강력 추천)", trend: "up" },
+    { word: "로컬찐노포", volume: "210K", competition: "중간", trend: "up" },
+    { word: "감성에스프레소바", volume: "78K", competition: "낮음 (강력 추천)", trend: "up" },
+    { word: "주말웨이팅꿀팁", volume: "94K", competition: "상위 노출 용이", trend: "up" },
+    { word: "가성비코스요리", volume: "112K", competition: "중간", trend: "steady" },
+    { word: "인스타핫플", volume: "280K", competition: "높음", trend: "steady" },
+  ],
+  trend: [
+    { word: "도파민디톡스", volume: "185K", competition: "낮음 (강력 추천)", trend: "up" },
+    { word: "성수동팝업스토어", volume: "310K", competition: "중간", trend: "up" },
+    { word: "웰니스루틴", volume: "98K", competition: "낮음 (강력 추천)", trend: "up" },
+    { word: "미라클모닝갓생", volume: "120K", competition: "상위 노출 용이", trend: "up" },
+    { word: "주말전시회추천", volume: "145K", competition: "중간", trend: "steady" },
+    { word: "워케이션실전기", volume: "64K", competition: "낮음 (강력 추천)", trend: "up" },
+  ],
+  life_info: [
+    { word: "전기요금아끼는법", volume: "240K", competition: "낮음 (강력 추천)", trend: "up" },
+    { word: "자취생필수살림", volume: "135K", competition: "상위 노출 용이", trend: "up" },
+    { word: "15분초간단요리", volume: "190K", competition: "중간", trend: "up" },
+    { word: "스마트폰배터리꿀팁", volume: "95K", competition: "낮음 (강력 추천)", trend: "up" },
+    { word: "정부지원금신청", volume: "320K", competition: "높음", trend: "up" },
+    { word: "생활얼룩지우는법", volume: "105K", competition: "낮음 (강력 추천)", trend: "steady" },
+  ],
+};
+
 export const BlogGenerator: React.FC<BlogGeneratorProps> = ({
   onBlogGenerated,
   selectedTemplate,
@@ -79,34 +148,34 @@ export const BlogGenerator: React.FC<BlogGeneratorProps> = ({
   categoryType: externalCategoryType,
   onCategoryTypeChange,
 }) => {
-  const [internalCategoryType, setInternalCategoryType] = useState<"travel" | "life_info">(
-    selectedTemplate?.categoryType || externalCategoryType || "travel"
+  const [internalCategoryType, setInternalCategoryType] = useState<"travel" | "life_info" | "food" | "trend">(
+    (selectedTemplate?.categoryType as any) || externalCategoryType || "travel"
   );
 
   const categoryType = externalCategoryType || internalCategoryType;
 
-  const handleSwitchCategory = (cat: "travel" | "life_info") => {
-    setInternalCategoryType(cat);
-    if (onCategoryTypeChange) onCategoryTypeChange(cat);
-    if (cat === "life_info" && !destination) {
-      setDestination("여름철 에어컨 전기요금 50% 절약하는 실전 꿀팁 7가지");
-      setKeywords(["전기세절약", "살림꿀팁", "자취생전기세"]);
-      setTravelStyle("절약 / 재테크 / 생활노하우");
-      setDuration("소요시간 5분");
-    } else if (cat === "travel" && !destination) {
-      setDestination("제주도 3박 4일 감성 카페 & 해안도로 드라이브 코스");
-      setKeywords(["해안도로", "맛집투어", "인생샷포토존"]);
-      setTravelStyle("감성 카페 & 핫플");
-      setDuration("3박 4일");
-    }
-  };
-
   const [destination, setDestination] = useState(
     selectedTemplate ? `${selectedTemplate.destination} - ${selectedTemplate.title}` : ""
   );
-  const [duration, setDuration] = useState(selectedTemplate?.duration || (categoryType === "travel" ? "3박 4일" : "소요시간 5분"));
+  const [duration, setDuration] = useState(
+    selectedTemplate?.duration ||
+      (categoryType === "travel"
+        ? "3박 4일"
+        : categoryType === "food"
+        ? "반나절 코스"
+        : categoryType === "trend"
+        ? "주말 방문 가이드"
+        : "소요시간 5분")
+  );
   const [travelStyle, setTravelStyle] = useState(
-    selectedTemplate?.style || (categoryType === "travel" ? "감성 카페 & 핫플" : "절약 / 재테크 / 생활노하우")
+    selectedTemplate?.style ||
+      (categoryType === "travel"
+        ? "감성 카페 & 핫플"
+        : categoryType === "food"
+        ? "🥐 베이커리 & 디저트 카페"
+        : categoryType === "trend"
+        ? "🏃‍♂️ 러닝 크루 & 웰니스"
+        : "절약 / 재테크 / 생활노하우")
   );
   const [tone, setTone] = useState(
     selectedTemplate?.tone || "친근하고 감성적인 ~해요체 (인스타그램/네이버 블로그)"
@@ -116,13 +185,65 @@ export const BlogGenerator: React.FC<BlogGeneratorProps> = ({
   );
   const [keywordInput, setKeywordInput] = useState("");
   const [keywords, setKeywords] = useState<string[]>(
-    selectedTemplate?.keywords || (categoryType === "travel" ? ["해안도로", "맛집투어", "인생샷포토존"] : ["생활꿀팁", "살림노하우", "꿀팁총정리"])
+    selectedTemplate?.keywords ||
+      (categoryType === "travel"
+        ? ["해안도로", "맛집투어", "인생샷포토존"]
+        : categoryType === "food"
+        ? ["성수동카페", "소금빵성지", "오픈런"]
+        : categoryType === "trend"
+        ? ["러닝크루", "한강러닝", "오운완"]
+        : ["생활꿀팁", "살림노하우", "꿀팁총정리"])
   );
   const [targetAudience, setTargetAudience] = useState("자취생, 주부, 직장인, 전체");
 
   const [isLoading, setIsLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
+
+  // Sync state when selectedTemplate changes
+  React.useEffect(() => {
+    if (selectedTemplate) {
+      const cat = (selectedTemplate.categoryType as any) || "travel";
+      setInternalCategoryType(cat);
+      if (onCategoryTypeChange) onCategoryTypeChange(cat);
+      setDestination(selectedTemplate.title);
+      setDuration(selectedTemplate.duration || "3박 4일");
+      setTravelStyle(selectedTemplate.style || "");
+      setTone(selectedTemplate.tone || "친근하고 감성적인 ~해요체 (인스타그램/네이버 블로그)");
+      setKeywords(selectedTemplate.keywords || []);
+      setSpecificSpots(selectedTemplate.keywords.join(", "));
+    }
+  }, [selectedTemplate]);
+
+  const handleSwitchCategory = (cat: "travel" | "life_info" | "food" | "trend") => {
+    setInternalCategoryType(cat);
+    if (onCategoryTypeChange) onCategoryTypeChange(cat);
+    if (cat === "food") {
+      setDestination("성수동 오픈런 신상 베이커리 & 감성 카페 투어 BEST 5");
+      setKeywords(["성수동카페", "소금빵성지", "성수베이커리", "인생샷카페"]);
+      setSpecificSpots("성수동카페, 소금빵성지, 성수베이커리, 인생샷카페");
+      setTravelStyle("🥐 베이커리 & 디저트 카페");
+      setDuration("반나절 코스");
+    } else if (cat === "trend") {
+      setDestination("요즘 2030 대세 라이프스타일! 한강 야간 러닝 크루 & 플로깅 입문기");
+      setKeywords(["러닝크루", "한강러닝", "야간달리기", "오운완"]);
+      setSpecificSpots("러닝크루, 한강러닝, 야간달리기, 오운완");
+      setTravelStyle("🏃‍♂️ 러닝 크루 & 웰니스");
+      setDuration("퇴근 후 2시간 루틴");
+    } else if (cat === "life_info") {
+      setDestination("여름철 에어컨 전기요금 50% 절약하는 실전 꿀팁 7가지");
+      setKeywords(["전기세절약", "살림꿀팁", "자취생전기세"]);
+      setSpecificSpots("전기세절약, 살림꿀팁, 자취생전기세");
+      setTravelStyle("절약 / 재테크 / 생활노하우");
+      setDuration("소요시간 5분");
+    } else {
+      setDestination("제주도 3박 4일 감성 카페 & 해안도로 드라이브 코스");
+      setKeywords(["해안도로", "맛집투어", "인생샷포토존"]);
+      setSpecificSpots("해안도로, 맛집투어, 인생샷포토존");
+      setTravelStyle("감성 카페 & 핫플");
+      setDuration("3박 4일");
+    }
+  };
 
   const handleAddKeyword = () => {
     if (keywordInput.trim() && !keywords.includes(keywordInput.trim())) {
@@ -212,10 +333,25 @@ export const BlogGenerator: React.FC<BlogGeneratorProps> = ({
         concept: generatedData.concept || travelStyle,
         tone: generatedData.tone || tone,
         targetAudience: generatedData.targetAudience || targetAudience,
-        budget: generatedData.budget || (categoryType === "travel" ? "일정별 상이" : "비용 0원 (집에 있는 재료)"),
+        budget:
+          generatedData.budget ||
+          (categoryType === "travel"
+            ? "일정별 상이"
+            : categoryType === "food"
+            ? "1인당 1~3만원대"
+            : categoryType === "trend"
+            ? "체험비 0원 ~ 소액 (굿즈 제외)"
+            : "비용 0원 (집에 있는 재료)"),
         season: generatedData.season || "사계절 유용",
         categoryType,
-        categoryName: categoryType === "travel" ? "✈️ 여행" : "💡 생활정보",
+        categoryName:
+          categoryType === "travel"
+            ? "✈️ 여행"
+            : categoryType === "food"
+            ? "🍽️ 맛집/카페"
+            : categoryType === "trend"
+            ? "🔥 트렌드"
+            : "💡 생활정보",
         metaKeywords: generatedData.metaKeywords || keywords,
         hashtags: generatedData.hashtags || keywords.map((k) => `#${k}`),
         itinerary: generatedData.itinerary || [],
@@ -227,6 +363,7 @@ export const BlogGenerator: React.FC<BlogGeneratorProps> = ({
         views: Math.floor(Math.random() * 20) + 1,
         likes: Math.floor(Math.random() * 10) + 1,
         status: "published",
+        isPublic: true,
         coverImageUrl,
       };
 
@@ -242,84 +379,216 @@ export const BlogGenerator: React.FC<BlogGeneratorProps> = ({
     }
   };
 
+  const getCategoryTheme = () => {
+    switch (categoryType) {
+      case "food":
+        return {
+          icon: "🍽️",
+          badgeClass: "bg-rose-50 border-rose-200 text-rose-700",
+          badgeText: "Gemini AI 기반 맛집 & 카페 미식 에디터",
+          heroTitle: (
+            <>
+              침샘을 자극하는{" "}
+              <span className="text-rose-600 font-black">생생한 미식 리뷰</span>가 완성됩니다
+            </>
+          ),
+          heroDesc:
+            "식당 분위기, 시그니처 메뉴의 맛과 식감, 웨이팅/오픈런 꿀팁, 주차 정보까지 담긴 고품질 맛집/카페 포스팅을 AI가 자동 작성해 드립니다.",
+          topics: QUICK_FOOD_TOPICS,
+          inputLabel: "어떤 맛집/카페를 소개하고 싶으신가요? (매장명 및 대표 메뉴) *",
+          inputPlaceholder: "예: 성수동 오픈런 신상 베이커리 & 소금빵 카페, 을지로 힙지로 노포 야장 삼겹살 등",
+          durationLabel: "방문 시간대 / 식사 코스",
+          stylesLabel: "다이닝 / 카페 스타일",
+        };
+      case "trend":
+        return {
+          icon: "🔥",
+          badgeClass: "bg-purple-50 border-purple-200 text-purple-700",
+          badgeText: "Gemini AI 기반 최신 라이프 트렌드 리포터",
+          heroTitle: (
+            <>
+              주목받는 최신 유행이{" "}
+              <span className="text-purple-600 font-black">감각적인 트렌드 글</span>이 됩니다
+            </>
+          ),
+          heroDesc:
+            "2030 세대가 열광하는 핫플레이스, 팝업스토어, 러닝 크루, 웰니스 라이프스타일의 핵심을 짚고 실전 참여 가이드를 완성해 드립니다.",
+          topics: QUICK_TREND_TOPICS,
+          inputLabel: "어떤 최신 트렌드를 다루고 싶으신가요? (트렌드/핫플 주제) *",
+          inputPlaceholder: "예: 요즘 2030 대세 한강 야간 러닝 크루 & 플로깅, 주말 성수동 팝업스토어 공략법 등",
+          durationLabel: "소요 시간 / 참여 루틴",
+          stylesLabel: "트렌드 테마",
+        };
+      case "life_info":
+        return {
+          icon: "💡",
+          badgeClass: "bg-amber-50 border-amber-200 text-amber-700",
+          badgeText: "Gemini AI 기반 생활정보 & 꿀팁 에디터",
+          heroTitle: (
+            <>
+              일상의 유용한 꿀팁이{" "}
+              <span className="text-amber-600 font-black">명쾌한 정보글</span>이 됩니다
+            </>
+          ),
+          heroDesc:
+            "궁금한 살림, 절약, 요리, 자취, IT 분야 키워드만 입력하면 단계별 실행 가이드와 필수 꿀팁, SEO 마크다운 포스팅이 완성됩니다.",
+          topics: QUICK_LIFE_TOPICS,
+          inputLabel: "어떤 생활정보 / 꿀팁을 작성하고 싶으신가요? (주제 입력) *",
+          inputPlaceholder: "예: 여름철 에어컨 전기요금 50% 절약하는 실전 꿀팁, 초간단 냉장고 정리법 등",
+          durationLabel: "소요시간 / 난이도",
+          stylesLabel: "생활정보 분야",
+        };
+      case "travel":
+      default:
+        return {
+          icon: "✈️",
+          badgeClass: "bg-orange-50 border-orange-200 text-orange-600",
+          badgeText: "Gemini AI 기반 여행 블로그 자동화",
+          heroTitle: (
+            <>
+              당신의 여행이{" "}
+              <span className="text-orange-600 font-black">완벽한 문장</span>으로 탄생합니다
+            </>
+          ),
+          heroDesc:
+            "간단한 주제만 입력해도 일정별 코스, 감성적 후기, 꿀팁, 네이버/티스토리 마크다운 및 SEO 해시태그까지 AI가 완성해 드립니다.",
+          topics: QUICK_TRAVEL_TOPICS,
+          inputLabel: "어디를 다녀오셨나요? (여행지 또는 여행 코스 입력) *",
+          inputPlaceholder: "예: 제주도 3박 4일 감성 카페 & 해안도로 드라이브 코스, 도쿄 미식 탐방 등",
+          durationLabel: "여행 기간",
+          stylesLabel: "여행 테마 / 컨셉",
+        };
+    }
+  };
+
+  const getBannerStyles = () => {
+    switch (categoryType) {
+      case "food":
+        return {
+          bgClass: "bg-gradient-to-br from-rose-50/50 via-white to-stone-50/30 border-rose-200/60 shadow-rose-100/10",
+        };
+      case "trend":
+        // "여기는 색깔 넣어줘 박스 디자인에" - Standout premium purple styled box background and border
+        return {
+          bgClass: "bg-gradient-to-br from-purple-100/75 via-indigo-50/40 to-white border-purple-300 shadow-purple-100/30",
+        };
+      case "life_info":
+        return {
+          bgClass: "bg-gradient-to-br from-amber-50/40 via-white to-stone-50/30 border-amber-200/60 shadow-amber-100/10",
+        };
+      case "travel":
+      default:
+        return {
+          bgClass: "bg-gradient-to-br from-orange-50/40 via-white to-stone-50/30 border-orange-200/60 shadow-orange-100/10",
+        };
+    }
+  };
+
+  const bannerStyles = getBannerStyles();
+  const theme = getCategoryTheme();
+
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
-      {/* Category Theme Switcher Tabs */}
-      <div className="flex items-center justify-center p-1.5 bg-stone-200/70 rounded-2xl max-w-md mx-auto shadow-inner">
+      {/* Category Theme Switcher Tabs - SNS Style 4 Categories */}
+      <div className="flex flex-wrap items-center justify-center p-1.5 bg-stone-200/70 rounded-2xl max-w-xl mx-auto shadow-inner gap-1">
         <button
           type="button"
           onClick={() => handleSwitchCategory("travel")}
-          className={`flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center justify-center space-x-2 ${
+          className={`flex-1 min-w-[100px] py-2.5 px-3 rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center justify-center space-x-1.5 ${
             categoryType === "travel"
               ? "bg-white text-orange-600 shadow-md shadow-stone-300/50 scale-[1.02]"
               : "text-stone-600 hover:text-stone-900"
           }`}
         >
-          <span className="text-lg">✈️</span>
-          <span>여행 블로그 생성</span>
+          <span className="text-base">✈️</span>
+          <span>여행</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleSwitchCategory("food")}
+          className={`flex-1 min-w-[100px] py-2.5 px-3 rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center justify-center space-x-1.5 ${
+            categoryType === "food"
+              ? "bg-white text-rose-600 shadow-md shadow-stone-300/50 scale-[1.02]"
+              : "text-stone-600 hover:text-stone-900"
+          }`}
+        >
+          <span className="text-base">🍽️</span>
+          <span>맛집/카페</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleSwitchCategory("trend")}
+          className={`flex-1 min-w-[100px] py-2.5 px-3 rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center justify-center space-x-1.5 ${
+            categoryType === "trend"
+              ? "bg-white text-purple-600 shadow-md shadow-stone-300/50 scale-[1.02]"
+              : "text-stone-600 hover:text-stone-900"
+          }`}
+        >
+          <span className="text-base">🔥</span>
+          <span>트렌드</span>
         </button>
 
         <button
           type="button"
           onClick={() => handleSwitchCategory("life_info")}
-          className={`flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center justify-center space-x-2 ${
+          className={`flex-1 min-w-[100px] py-2.5 px-3 rounded-xl text-xs sm:text-sm font-extrabold transition-all flex items-center justify-center space-x-1.5 ${
             categoryType === "life_info"
               ? "bg-white text-amber-600 shadow-md shadow-stone-300/50 scale-[1.02]"
               : "text-stone-600 hover:text-stone-900"
           }`}
         >
-          <span className="text-lg">💡</span>
-          <span>생활정보 & 꿀팁 생성</span>
+          <span className="text-base">💡</span>
+          <span>생활정보</span>
         </button>
       </div>
 
       {/* Hero Banner Section */}
-      <div className="relative rounded-3xl bg-white p-8 sm:p-10 border border-stone-200/80 shadow-xl shadow-stone-200/40 overflow-hidden text-center">
+      <div className={`relative rounded-3xl p-5 sm:p-8 md:p-10 border shadow-xl transition-all duration-300 overflow-hidden text-center ${bannerStyles.bgClass}`}>
         {/* Background Decorative Blur Glows */}
-        <div className={`absolute -top-10 -left-10 w-48 h-48 rounded-full blur-3xl opacity-70 pointer-events-none ${categoryType === "travel" ? "bg-orange-100" : "bg-amber-100"}`} />
+        <div
+          className={`absolute -top-10 -left-10 w-48 h-48 rounded-full blur-3xl opacity-70 pointer-events-none ${
+            categoryType === "travel"
+              ? "bg-orange-100"
+              : categoryType === "food"
+              ? "bg-rose-100"
+              : categoryType === "trend"
+              ? "bg-purple-100"
+              : "bg-amber-100"
+          }`}
+        />
         <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-blue-100 rounded-full blur-3xl opacity-70 pointer-events-none" />
 
         <div className="relative z-10 space-y-4 max-w-2xl mx-auto">
-          <div className={`inline-flex items-center space-x-2 border px-3 py-1 rounded-full text-xs font-bold ${
-            categoryType === "travel"
-              ? "bg-orange-50 border-orange-200 text-orange-600"
-              : "bg-amber-50 border-amber-200 text-amber-700"
-          }`}>
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            <span>
-              {categoryType === "travel"
-                ? "Gemini AI 기반 여행 블로그 자동화"
-                : "Gemini AI 기반 생활정보 & 꿀팁 에디터"}
-            </span>
+          <div
+            className={`inline-flex items-center space-x-2 border px-3 py-1 rounded-full text-xs font-bold ${theme.badgeClass}`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>{theme.badgeText}</span>
           </div>
 
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-stone-900 tracking-tight leading-tight">
-            {categoryType === "travel" ? (
-              <>당신의 여행이 <span className="text-orange-600">완벽한 문장</span>으로 탄생합니다</>
-            ) : (
-              <>일상의 유용한 꿀팁이 <span className="text-amber-600 font-black">명쾌한 정보글</span>이 됩니다</>
-            )}
+          <h1 className="text-[12px] xs:text-[14px] sm:text-lg md:text-xl lg:text-[25px] font-black text-stone-900 tracking-tight leading-normal whitespace-nowrap overflow-hidden text-ellipsis">
+            {theme.heroTitle}
           </h1>
 
           <p className="text-stone-600 text-sm sm:text-base leading-relaxed">
-            {categoryType === "travel"
-              ? "간단한 주제만 입력해도 일정별 코스, 감성적 후기, 꿀팁, 네이버/티스토리 마크다운 및 SEO 해시태그까지 AI가 완성해 드립니다."
-              : "궁금한 살림, 절약, 요리, 자취, IT 분야 키워드만 입력하면 단계별 실행 가이드와 필수 꿀팁, SEO 마크다운 포스팅이 완성됩니다."}
+            {theme.heroDesc}
           </p>
 
           {/* Preset Chips */}
           <div className="pt-2 text-left">
             <p className="text-xs font-semibold text-stone-500 mb-2 flex items-center gap-1 justify-center">
               <Zap className="w-3.5 h-3.5 text-amber-500" />
-              <span>{categoryType === "travel" ? "추천 인기 여행 주제 (클릭 시 자동 입력):" : "추천 인기 생활정보 주제 (클릭 시 자동 입력):"}</span>
+              <span>추천 인기 주제 (클릭 시 자동 입력):</span>
             </p>
             <div className="flex flex-wrap gap-2 justify-center">
-              {(categoryType === "travel" ? QUICK_TRAVEL_TOPICS : QUICK_LIFE_TOPICS).map((topic, idx) => (
+              {theme.topics.map((topic, idx) => (
                 <button
                   key={idx}
                   type="button"
                   onClick={() => setDestination(topic)}
-                  className="text-xs bg-stone-50 hover:bg-orange-50 text-stone-700 hover:text-orange-600 border border-stone-200 hover:border-orange-300 px-3 py-1.5 rounded-xl transition-all font-medium"
+                  className="text-xs bg-stone-50 hover:bg-stone-100 text-stone-700 hover:text-stone-900 border border-stone-200 hover:border-stone-300 px-3 py-1.5 rounded-xl transition-all font-medium"
                 >
                   {topic}
                 </button>
@@ -355,14 +624,14 @@ export const BlogGenerator: React.FC<BlogGeneratorProps> = ({
             <span className="flex items-center space-x-2">
               {categoryType === "travel" ? (
                 <MapPin className="w-4 h-4 text-orange-500" />
+              ) : categoryType === "food" ? (
+                <Utensils className="w-4 h-4 text-rose-500" />
+              ) : categoryType === "trend" ? (
+                <Sparkles className="w-4 h-4 text-purple-600" />
               ) : (
                 <Zap className="w-4 h-4 text-amber-500" />
               )}
-              <span>
-                {categoryType === "travel"
-                  ? "어디를 다녀오셨나요? (여행지 또는 주제 입력) *"
-                  : "어떤 생활정보 / 꿀팁을 작성하고 싶으신가요? (주제 입력) *"}
-              </span>
+              <span>{theme.inputLabel}</span>
             </span>
             <span className="text-xs text-stone-400 font-normal">필수</span>
           </label>
@@ -371,11 +640,7 @@ export const BlogGenerator: React.FC<BlogGeneratorProps> = ({
               type="text"
               value={destination}
               onChange={(e) => setDestination(e.target.value)}
-              placeholder={
-                categoryType === "travel"
-                  ? "예: 제주도 3박 4일 감성 카페 & 해안도로 투어, 도쿄 미식 탐방 등"
-                  : "예: 여름철 에어컨 전기요금 50% 절약하는 실전 꿀팁, 초간단 냉장고 정리법 등"
-              }
+              placeholder={theme.inputPlaceholder}
               className="w-full bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3.5 pl-11 text-stone-900 placeholder-stone-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all text-sm sm:text-base font-medium"
             />
             <Compass className="w-5 h-5 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -388,14 +653,31 @@ export const BlogGenerator: React.FC<BlogGeneratorProps> = ({
           <div className="space-y-2">
             <label className="block text-sm font-bold text-stone-800 flex items-center space-x-2">
               <Calendar className="w-4 h-4 text-orange-500" />
-              <span>{categoryType === "travel" ? "여행 기간" : "소요시간 / 난이도"}</span>
+              <span>{theme.durationLabel}</span>
             </label>
             <select
               value={duration}
               onChange={(e) => setDuration(e.target.value)}
               className="w-full bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3 text-stone-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm font-medium"
             >
-              {categoryType === "travel" ? (
+              {categoryType === "food" ? (
+                <>
+                  <option value="반나절 코스">반나절 미식 투어 (식사+카페)</option>
+                  <option value="점심 피크 식사">점심 피크 식사 (웨이팅 고려)</option>
+                  <option value="오후 디저트 카페 투어">오후 디저트 & 베이커리 투어</option>
+                  <option value="저녁 회식 & 2차 코스">저녁 식사 & 2차 술자리 코스</option>
+                  <option value="오마카세 / 코스 요리">오마카세 / 코스 요리 (2~3시간)</option>
+                  <option value="1박 2일 식도락">1박 2일 로컬 식도락 여행</option>
+                </>
+              ) : categoryType === "trend" ? (
+                <>
+                  <option value="퇴근 후 2시간 루틴">퇴근 후 2시간 나이트 루틴</option>
+                  <option value="주말 방문 가이드">주말 반나절 방문 가이드</option>
+                  <option value="1박 2일 주말 힐링">1박 2일 주말 힐링 스테이</option>
+                  <option value="일주일 워케이션">일주일 워케이션 실전 코스</option>
+                  <option value="데일리 모닝 루틴">데일리 갓생/미라클 모닝 루틴</option>
+                </>
+              ) : categoryType === "travel" ? (
                 <>
                   <option value="당일치기">당일치기 나들이</option>
                   <option value="1박 2일">1박 2일 코스</option>
@@ -420,14 +702,26 @@ export const BlogGenerator: React.FC<BlogGeneratorProps> = ({
           <div className="space-y-2">
             <label className="block text-sm font-bold text-stone-800 flex items-center space-x-2">
               <Plane className="w-4 h-4 text-orange-500" />
-              <span>{categoryType === "travel" ? "여행 테마 / 컨셉" : "생활정보 분야"}</span>
+              <span>{theme.stylesLabel}</span>
             </label>
             <select
               value={travelStyle}
               onChange={(e) => setTravelStyle(e.target.value)}
               className="w-full bg-stone-50 border border-stone-200 rounded-2xl px-4 py-3 text-stone-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm font-medium"
             >
-              {categoryType === "travel"
+              {categoryType === "food"
+                ? FOOD_STYLES.map((style) => (
+                    <option key={style.id} value={style.id}>
+                      {style.label}
+                    </option>
+                  ))
+                : categoryType === "trend"
+                ? TREND_STYLES.map((style) => (
+                    <option key={style.id} value={style.id}>
+                      {style.label}
+                    </option>
+                  ))
+                : categoryType === "travel"
                 ? TRAVEL_STYLES.map((style) => (
                     <option key={style.id} value={style.id}>
                       {style.label}
@@ -518,6 +812,68 @@ export const BlogGenerator: React.FC<BlogGeneratorProps> = ({
               </button>
             </div>
 
+            {/* 🔥 Trend Keyword Widget */}
+            <div className="bg-stone-50/90 border border-stone-200/60 rounded-2xl p-4 mt-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-1.5 text-xs font-black text-stone-700">
+                  <span className="animate-pulse">📡</span>
+                  <span>네이버 검색 노출 최적화 트렌드 키워드 위젯</span>
+                </div>
+                <span className="text-[9px] sm:text-[10px] bg-orange-500 text-white font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider animate-pulse">
+                  실시간 분석
+                </span>
+              </div>
+              <p className="text-[11px] text-stone-500 leading-relaxed">
+                현재 <strong>{categoryType === "travel" ? "여행" : categoryType === "food" ? "맛집/카페" : categoryType === "trend" ? "트렌드" : "생활정보"}</strong> 카테고리에서 상위 노출 가능성이 높은 골든 키워드입니다. 클릭 시 글 생성기에 즉시 추가됩니다.
+              </p>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+                {(TRENDING_KEYWORDS_BY_CATEGORY[categoryType as keyof typeof TRENDING_KEYWORDS_BY_CATEGORY] || []).map((item, idx) => {
+                  const isAdded = keywords.includes(item.word);
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      disabled={isAdded}
+                      onClick={() => {
+                        if (!isAdded) {
+                          setKeywords([...keywords, item.word]);
+                        }
+                      }}
+                      className={`p-2.5 rounded-xl border text-left transition-all duration-200 flex flex-col justify-between h-[64px] relative overflow-hidden group ${
+                        isAdded
+                          ? "bg-stone-100 border-stone-200 text-stone-400 cursor-not-allowed"
+                          : "bg-white hover:bg-orange-50/30 border-stone-200 hover:border-orange-300 text-stone-700 hover:text-stone-900 shadow-xs"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <span className={`text-[11px] font-black truncate ${isAdded ? "text-stone-400 line-through" : "text-stone-800"}`}>
+                          #{item.word}
+                        </span>
+                        {item.trend === "up" ? (
+                          <span className="text-[9px] text-rose-500 font-extrabold animate-bounce">▲</span>
+                        ) : (
+                          <span className="text-[9px] text-stone-400 font-extrabold">●</span>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between w-full text-[9px] text-stone-400">
+                        <span>조회수 {item.volume}</span>
+                        <span className={`font-bold ${
+                          item.competition.includes("추천") || item.competition.includes("용이")
+                            ? "text-emerald-600 font-extrabold"
+                            : item.competition.includes("높음")
+                            ? "text-rose-500 font-extrabold"
+                            : "text-amber-600 font-extrabold"
+                        }`}>
+                          {isAdded ? "추가 완료" : item.competition.split(" ")[0]}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Added Keyword Badges */}
             <div className="flex flex-wrap gap-2 pt-2">
               {keywords.map((kw, i) => (
@@ -563,8 +919,8 @@ export const BlogGenerator: React.FC<BlogGeneratorProps> = ({
               <div className="flex items-center space-x-3">
                 <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
                 <span>
-                  {loadingStep === 1 && "1/3 단계: 제미나이 AI가 주제와 살림 지식을 분석 중입니다..."}
-                  {loadingStep === 2 && "2/3 단계: 단계별 꿀팁 본문 및 체크포인트 작성 중..."}
+                  {loadingStep === 1 && "1/3 단계: 주제와 필수 정보 데이터를 정밀 분석 중입니다..."}
+                  {loadingStep === 2 && "2/3 단계: 단계별 맞춤 본문 및 핵심 포인트 구성 중..."}
                   {loadingStep === 3 && "3/3 단계: 네이버/티스토리 마크다운 및 SEO 정제 중..."}
                 </span>
               </div>
@@ -573,8 +929,8 @@ export const BlogGenerator: React.FC<BlogGeneratorProps> = ({
                 <Sparkles className="w-5 h-5 text-amber-200" />
                 <span>
                   {categoryType === "travel"
-                    ? "제미나이 AI로 여행 블로그 글 생성하기"
-                    : "제미나이 AI로 생활정보 꿀팁 글 생성하기"}
+                    ? "AI 협업 여행 블로그 글 생성하기"
+                    : "AI 협업 생활정보 꿀팁 글 생성하기"}
                 </span>
                 <ArrowRight className="w-5 h-5" />
               </>

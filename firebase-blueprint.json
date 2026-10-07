@@ -27,6 +27,23 @@
         "coverImageUrl": { "type": "string" }
       },
       "required": ["title", "destination", "markdownContent"]
+    },
+    "travel_gallery_images": {
+      "title": "Travel Gallery Images",
+      "description": "AI-generated travel photo records saved to gallery and linked to blogs",
+      "properties": {
+        "imageUrl": { "type": "string" },
+        "destination": { "type": "string" },
+        "style": { "type": "string" },
+        "lighting": { "type": "string" },
+        "aspectRatio": { "type": "string" },
+        "prompt": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "linkedBlogId": { "type": "string" },
+        "linkedBlogTitle": { "type": "string" },
+        "isCover": { "type": "boolean" }
+      },
+      "required": ["imageUrl", "destination"]
     }
   }
 }

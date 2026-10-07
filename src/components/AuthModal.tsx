@@ -10,6 +10,7 @@ import {
   Lock,
   UserPlus,
   LogIn,
+  Shield,
 } from "lucide-react";
 import { UserProfile } from "../types";
 import {
@@ -156,10 +157,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <Flame className="w-6 h-6 text-orange-500" />
           </div>
           <h2 className="text-2xl font-extrabold text-stone-900 tracking-tight">
-            {user ? "내 계정 정보" : mode === "signup" ? "파이어베이스 회원가입" : "파이어베이스 로그인"}
+            {user ? "내 계정 정보" : mode === "signup" ? "회원가입" : "로그인"}
           </h2>
           <p className="text-xs text-stone-500">
-            Firebase Auth 서비스 및 Cloud Firestore DB 동기화
+            클라우드 DB 동기화 및 내 보관함 계정 관리
           </p>
         </div>
 
@@ -338,6 +339,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <User className="w-4 h-4 text-orange-500" />
               <span>Google 계정으로 계속하기</span>
             </button>
+
+            {mode === "login" && (
+              <div className="mt-4 p-3.5 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-2 text-left">
+                <p className="text-[10px] text-amber-800 font-extrabold flex items-center space-x-1">
+                  <Shield className="w-3 h-3 text-amber-600 fill-amber-500/15" />
+                  <span>[테스터 전용] 관리자 계정 빠른 입력</span>
+                </p>
+                <p className="text-[10px] text-stone-500 leading-normal font-medium">
+                  지정 관리자 계정(<span className="font-bold text-stone-800">cyber924@naver.com</span>)으로 양식을 자동 채우려면 아래를 클릭해 주세요.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail("cyber924@naver.com");
+                    setPassword("123456");
+                  }}
+                  className="w-full bg-white hover:bg-stone-50 text-stone-800 border border-amber-200 py-1.5 rounded-xl text-[10px] font-extrabold transition-colors shadow-2xs"
+                >
+                  cyber924@naver.com 자동 채우기 ⚡
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
