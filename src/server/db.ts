@@ -40,7 +40,7 @@ export interface BlogPost {
  */
 export async function getBlogPostById(id: string): Promise<BlogPost | null> {
   try {
-    const docRef = doc(db, "blogs", id);
+    const docRef = doc(db, "travel_blog_posts", id);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
       const data = docSnap.data();
@@ -61,7 +61,7 @@ export async function getBlogPostById(id: string): Promise<BlogPost | null> {
       } as BlogPost;
     }
   } catch (error) {
-    console.error(`Error fetching blog ${id} from Firestore on server:`, error);
+    console.error(`Error fetching blog ${id} from travel_blog_posts on server:`, error);
   }
 
   // Fallback to sample articles
@@ -80,8 +80,8 @@ export async function getAllPublicBlogPosts(): Promise<BlogPost[]> {
   const postsMap = new Map<string, BlogPost>();
 
   try {
-    const q = query(collection(db, "blogs"), orderBy("createdAt", "desc"));
-    const querySnapshot = await getDocs(q);
+    const travelRef = collection(db, "travel_blog_posts");
+    const querySnapshot = await getDocs(travelRef);
     const now = new Date();
 
     querySnapshot.forEach((docSnap) => {
@@ -113,12 +113,9 @@ export async function getAllPublicBlogPosts(): Promise<BlogPost[]> {
     console.error("Error fetching all public blogs for sitemap:", error);
   }
 
-  // Merge sample articles (taking precedence if not overwritten by Firestore)
-  for (const sample of WEBZINE_SAMPLE_ARTICLES) {
-    if (!postsMap.has(sample.id)) {
-      postsMap.set(sample.id, sample as BlogPost);
-    }
-  }
+  // JavaScript-side sorting for zero-index query reliability
+  const sortedPosts = Array.from(postsMap.values());
+  sortedPosts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  return Array.from(postsMap.values());
+  return sortedPosts;
 }

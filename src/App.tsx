@@ -32,6 +32,13 @@ import {
   getLocalPosts,
   getLocalImages,
   auth,
+  subscribeToBlogs,
+  subscribeToPublishedPosts,
+  fetchBlogsFromServer,
+  fetchPublishedPostsFromServer,
+  publishPostAtomic,
+  unpublishPostAtomic,
+  ensureAuth,
 } from "./lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { Compass, Sparkles, FolderHeart, CheckCircle2 } from "lucide-react";
@@ -45,7 +52,10 @@ export default function App() {
   >("travel");
   const [currentPost, setCurrentPost] = useState<BlogPost | null>(null);
   const [savedPosts, setSavedPosts] = useState<BlogPost[]>([]);
+  const [publishedPosts, setPublishedPosts] = useState<BlogPost[]>([]);
   const [galleryImages, setGalleryImages] = useState<GeneratedImage[]>([]);
+  const [dbStatus, setDbStatus] = useState<"connecting" | "success" | "offline" | "error">("connecting");
+  const [dbErrorMessage, setDbErrorMessage] = useState<string | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<TravelTemplate | null>(null);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -71,22 +81,10 @@ export default function App() {
 
   const isAdmin = user?.email === "cyber924@naver.com" || isSimulatedAdmin;
 
-  // Webzine Derived State - Dynamically merges Firestore user posts & static sample articles
+  // Webzine Derived State - Purely active published posts from travel_blog_posts, zero mock samples merged
   const webzineArticles = useMemo(() => {
-    const userPublicPosts = savedPosts
-      .filter(
-        (p) =>
-          p.isPublic === true ||
-          p.status === "published" ||
-          (p.isPublic !== false && p.status !== "draft")
-      )
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-    const seenIds = new Set(userPublicPosts.map((p) => p.id));
-    const extraSamples = WEBZINE_SAMPLE_ARTICLES.filter((s) => !seenIds.has(s.id));
-
-    return [...userPublicPosts, ...extraSamples];
-  }, [savedPosts]);
+    return publishedPosts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [publishedPosts]);
 
   const [selectedWebzineArticle, setSelectedWebzineArticle] = useState<BlogPost | null>(null);
   const [embedModalPost, setEmbedModalPost] = useState<BlogPost | null>(null);
@@ -126,94 +124,93 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Fetch posts and gallery images from Firestore / local storage on load
+  // 1. Initial Load: Populate immediately from local cache (offline/instant UI feedback)
   useEffect(() => {
-    async function loadData() {
-      // 1. Instant Cache-First: populate immediately so user never sees an empty screen
-      const cachedPosts = getLocalPosts();
-      const cachedImages = getLocalImages();
-      if (cachedPosts.length > 0) {
-        setSavedPosts(cachedPosts);
-      }
-      if (cachedImages.length > 0) {
-        setGalleryImages(cachedImages);
-      }
-
-      // 2. Automatic one-time background migration to user's new Firebase DB
-      const migrationCompleted = localStorage.getItem("wanderlust_migration_completed_v2");
-      if (!migrationCompleted) {
-        try {
-          const { runDatabaseMigration } = await import("./lib/migration");
-          const res = await runDatabaseMigration();
-          if (res.success && res.postsMigrated > 0) {
-            setToastMessage(`🎉 신규 전용 DB로 ${res.postsMigrated}편의 글이 안전하게 마이그레이션되었습니다!`);
-            setTimeout(() => setToastMessage(null), 4000);
-          }
-        } catch (mErr) {
-          console.warn("Auto-migration notice:", mErr);
-        }
-      }
-
-      // 3. Fetch latest data from the new Firestore project
-      try {
-        const [posts, images] = await Promise.all([
-          fetchPostsFromFirestore(),
-          fetchImagesFromFirestore(),
-        ]);
-        if (posts && posts.length > 0) {
-          setSavedPosts(posts);
-        }
-        if (images && images.length > 0) {
-          setGalleryImages(images);
-        }
-      } catch (err) {
-        console.error("Failed to load initial data from new DB:", err);
-      } finally {
-        setIsDataLoaded(true);
-      }
+    const cachedPosts = getLocalPosts();
+    const cachedImages = getLocalImages();
+    if (cachedPosts.length > 0) {
+      setSavedPosts(cachedPosts);
     }
-    loadData();
+    if (cachedImages.length > 0) {
+      setGalleryImages(cachedImages);
+    }
+    setDbStatus("offline"); // Cache view status initially
+    setIsDataLoaded(true);
   }, []);
 
-  // Automatically re-fetch data from Firestore whenever the user state changes (login/logout/identity load)
+  // 2. Real-time Subscriptions (onSnapshot): automatic sync and component-unmount cleanup
   useEffect(() => {
-    async function reloadUserData() {
-      if (!user) return;
-      console.log(`[Auth Sync] User logged in: ${user.email}. Re-fetching fresh database records...`);
+    let unsubscribeBlogs: (() => void) | null = null;
+    let unsubscribePublished: (() => void) | null = null;
+
+    async function initRealtimeSubscriptions() {
+      setDbStatus("connecting");
       try {
-        const [posts, images] = await Promise.all([
-          fetchPostsFromFirestore(),
-          fetchImagesFromFirestore(),
-        ]);
-        if (posts && posts.length > 0) {
-          setSavedPosts(posts);
-        }
-        if (images && images.length > 0) {
-          setGalleryImages(images);
-        }
-      } catch (err) {
-        console.error("Failed to automatically fetch user data after auth state change:", err);
+        await auth.authStateReady();
+
+        // Subscribe to blogs archive
+        unsubscribeBlogs = subscribeToBlogs(
+          (posts) => {
+            console.log(`[Subscription] Received ${posts.length} blogs from server`);
+            setSavedPosts(posts); // This updates savedPosts. If 0 items, refreshes with empty list!
+            setDbStatus("success");
+            setDbErrorMessage(null);
+          },
+          (err) => {
+            console.error("[Subscription] Blogs failed:", err);
+            setDbStatus("error");
+            setDbErrorMessage(err.message || String(err));
+          }
+        );
+
+        // Subscribe to travel_blog_posts webzine public published copy
+        unsubscribePublished = subscribeToPublishedPosts(
+          (posts) => {
+            console.log(`[Subscription] Received ${posts.length} published posts from server`);
+            setPublishedPosts(posts); // Overwrites purely from server
+          },
+          (err) => {
+            console.error("[Subscription] Published posts failed:", err);
+          }
+        );
+
+      } catch (err: any) {
+        console.error("Failed to initialize subscriptions:", err);
+        setDbStatus("error");
+        setDbErrorMessage(err.message || String(err));
       }
     }
-    reloadUserData();
+
+    initRealtimeSubscriptions();
+
+    return () => {
+      if (unsubscribeBlogs) unsubscribeBlogs();
+      if (unsubscribePublished) unsubscribePublished();
+    };
   }, [user]);
 
-  // Manual trigger to pull the absolute latest data from Firestore
+  // 3. Manual trigger: Force pull directly from server bypassing local cache (getDocsFromServer)
   const handleRefreshDB = async () => {
+    setDbStatus("connecting");
     try {
-      const [posts, images] = await Promise.all([
-        fetchPostsFromFirestore(),
+      await ensureAuth();
+      const [posts, published, images] = await Promise.all([
+        fetchBlogsFromServer(),
+        fetchPublishedPostsFromServer(),
         fetchImagesFromFirestore(),
       ]);
-      if (posts) {
-        setSavedPosts(posts);
-      }
+      setSavedPosts(posts);
+      setPublishedPosts(published);
       if (images) {
         setGalleryImages(images);
       }
-    } catch (err) {
+      setDbStatus("success");
+      setDbErrorMessage(null);
+    } catch (err: any) {
       console.error("Manual database refresh failed:", err);
-      throw err;
+      setDbStatus("error");
+      setDbErrorMessage(err.message || String(err));
+      throw err; // Propagate error up
     }
   };
 
@@ -565,72 +562,79 @@ export default function App() {
   };
 
   const handleBlogGenerated = async (newBlog: BlogPost) => {
-    // Ensure newly generated post is explicitly public and published
-    const blogToPublish: BlogPost = {
+    // Save as draft by default in 'blogs' archive so user can explicitly publish later
+    const blogToSave: BlogPost = {
       ...newBlog,
-      isPublic: true,
-      status: "published",
+      isPublic: false,
+      status: "draft",
     };
-    setCurrentPost(blogToPublish);
+    setCurrentPost(blogToSave);
 
     try {
-      const savedId = await savePostToFirestore(blogToPublish);
-      const updated = { ...blogToPublish, id: savedId };
+      const savedId = await savePostToFirestore(blogToSave);
+      const updated = { ...blogToSave, id: savedId };
       setCurrentPost(updated);
       setSavedPosts((prev) => [updated, ...prev.filter((p) => p.id !== savedId)]);
-      showToast("🎉 블로그 글이 생성되어 웹진에 즉시 공개되었습니다!");
+      showToast("🎉 새로운 글이 생성되어 내 보관함에 임시 저장되었습니다. '발행' 버튼을 눌러 공용 웹진에 공개해 보세요!");
     } catch (err) {
       console.error("Auto save error:", err);
-      showToast("🎉 블로그 글이 생성되어 웹진에 공개되었습니다!");
+      showToast("❌ 글 생성 저장 중 오류가 발생했습니다.");
     }
   };
 
   const handleSavePost = async (postToSave: BlogPost) => {
     try {
-      const isPublic = postToSave.isPublic !== false && postToSave.status === "published";
       const savedId = await savePostToFirestore(postToSave);
       const updated = { ...postToSave, id: savedId };
       setCurrentPost(updated);
       setSavedPosts((prev) => [updated, ...prev.filter((p) => p.id !== savedId)]);
-
-      showToast("💾 파이어베이스 DB 및 웹진에 저장되었습니다!");
+      showToast("💾 파이어베이스 보관함에 안전하게 저장되었습니다!");
     } catch (err) {
       console.error(err);
-      showToast("저장 중 오류가 발생했습니다.");
+      showToast("❌ 저장 중 오류가 발생했습니다.");
     }
   };
 
-  // Toggle Webzine Publish / Draft Status
+  // Toggle Webzine Publish / Draft Status Atomically via writeBatch
   const handleTogglePublishPost = async (postId: string) => {
     const target = savedPosts.find((p) => p.id === postId);
     if (!target) return;
 
-    const nextPublished = !(target.isPublic || target.status === "published");
+    const originalPosts = [...savedPosts];
+    const isCurrentlyPublished = target.isPublic || target.status === "published";
+    const nextPublished = !isCurrentlyPublished;
     const updatedPost: BlogPost = {
       ...target,
       isPublic: nextPublished,
       status: nextPublished ? "published" : "draft",
     };
 
-    // Update savedPosts state
+    // Pre-emptively update local UI state for instant reaction
     setSavedPosts((prev) =>
       prev.map((p) => (p.id === postId ? updatedPost : p))
     );
-
     if (currentPost && currentPost.id === postId) {
       setCurrentPost(updatedPost);
     }
 
     try {
-      await savePostToFirestore(updatedPost);
       if (nextPublished) {
+        // Atomic batch set to both 'blogs' and 'travel_blog_posts'
+        await publishPostAtomic(updatedPost);
         showToast("🎉 웹진에 공개 발행되었습니다! [웹진] 탭 최상단에서 확인 가능합니다.");
       } else {
+        // Atomic batch delete from 'travel_blog_posts' and update in 'blogs'
+        await unpublishPostAtomic(postId);
         showToast("🔒 웹진 발행이 취소되어 나만의 보관함 전용으로 전환되었습니다.");
       }
     } catch (err) {
-      console.error("Failed to update post in Firestore:", err);
-      showToast(nextPublished ? "웹진에 발행되었습니다." : "발행이 취소되었습니다.");
+      console.error("Failed atomic publish/unpublish operation:", err);
+      // REVERT state to original on failure! Do NOT show success toast!
+      setSavedPosts(originalPosts);
+      if (currentPost && currentPost.id === postId) {
+        setCurrentPost(target);
+      }
+      showToast("❌ 발행 상태를 변경하는 도중 오류가 발생했습니다. 권한 및 네트워크를 확인해 주세요.");
     }
   };
 
@@ -646,7 +650,7 @@ export default function App() {
       showToast("✏️ 블로그 포스트가 성공적으로 수정되었습니다.");
     } catch (err) {
       console.error(err);
-      showToast("수정 중 오류가 발생했습니다.");
+      showToast("❌ 수정 중 오류가 발생했습니다.");
     }
   };
 
@@ -1076,6 +1080,8 @@ export default function App() {
                     onShowToast={showToast}
                     onNavigateToSNSArchive={() => setActiveTab("sns")}
                     onRefreshDB={handleRefreshDB}
+                    dbStatus={dbStatus}
+                    dbErrorMessage={dbErrorMessage}
                   />
                 )
               )}

@@ -33,6 +33,8 @@ interface PostListProps {
   onShowToast?: (msg: string) => void;
   onNavigateToSNSArchive?: () => void;
   onRefreshDB?: () => Promise<void>;
+  dbStatus?: "connecting" | "success" | "offline" | "error";
+  dbErrorMessage?: string | null;
 }
 
 export const PostList: React.FC<PostListProps> = ({
@@ -45,6 +47,8 @@ export const PostList: React.FC<PostListProps> = ({
   onShowToast = (_msg: string) => {},
   onNavigateToSNSArchive,
   onRefreshDB,
+  dbStatus = "success",
+  dbErrorMessage = null,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -100,9 +104,34 @@ export const PostList: React.FC<PostListProps> = ({
       {/* Header Banner */}
       <div className="flex flex-wrap items-center justify-between gap-4 bg-white border border-stone-200/80 p-6 sm:p-8 rounded-3xl shadow-xl shadow-stone-200/40">
         <div className="space-y-1">
-          <div className="flex items-center space-x-2">
-            <Database className="w-5 h-5 text-orange-500" />
-            <h1 className="text-2xl font-extrabold text-stone-900">콘텐츠 보관함</h1>
+          <div className="flex items-center flex-wrap gap-2">
+            <div className="flex items-center space-x-2">
+              <Database className="w-5 h-5 text-orange-500" />
+              <h1 className="text-2xl font-extrabold text-stone-900">콘텐츠 보관함</h1>
+            </div>
+            {/* 실시간 DB 연결 상태 배지 (Requirement 3 보강) */}
+            {dbStatus === "connecting" && (
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 animate-pulse">
+                <RefreshCw className="w-2.5 h-3 animate-spin" />
+                <span>실시간 연결 중...</span>
+              </span>
+            )}
+            {dbStatus === "success" && (
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+                <span>실시간 동기화 완료</span>
+              </span>
+            )}
+            {dbStatus === "offline" && (
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-stone-100 text-stone-600 border border-stone-200">
+                <span>🟡 오프라인 캐시 모드</span>
+              </span>
+            )}
+            {dbStatus === "error" && (
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200" title={dbErrorMessage || "연결 오류가 발생했습니다."}>
+                <span>🔴 DB 연결 실패</span>
+              </span>
+            )}
           </div>
           <p className="text-xs sm:text-sm text-stone-500">
             내 DB에 저장된 전체 블로그 글과 맞춤 SNS 패키지를 관리할 수 있습니다.

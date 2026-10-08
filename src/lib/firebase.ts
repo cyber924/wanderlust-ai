@@ -25,6 +25,9 @@ import {
   limit,
   Timestamp,
   getDocFromServer,
+  writeBatch,
+  onSnapshot,
+  getDocsFromServer,
 } from "firebase/firestore";
 import { BlogPost, GeneratedImage, UserProfile, ScheduledTask } from "../types";
 import { SAMPLE_WEBZINE_ARTICLES } from "../data/webzineSampleArticles";
@@ -187,8 +190,40 @@ export function deleteLocalImage(id: string) {
 }
 
 // Database Firestore Operations (with smooth local storage synchronization)
+export function mapDocToBlogPost(docId: string, data: any): BlogPost {
+  return {
+    id: docId,
+    title: data.title || "",
+    subtitle: data.subtitle || "",
+    destination: data.destination || "",
+    duration: data.duration || "",
+    concept: data.concept || "",
+    tone: data.tone || "",
+    targetAudience: data.targetAudience || "",
+    budget: data.budget || "",
+    season: data.season || "",
+    metaKeywords: data.metaKeywords || [],
+    hashtags: data.hashtags || [],
+    itinerary: data.itinerary || [],
+    markdownContent: data.markdownContent || "",
+    travelTips: data.travelTips || [],
+    seoDescription: data.seoDescription || "",
+    createdAt: data.createdAt || new Date().toISOString(),
+    updatedAt: data.updatedAt || new Date().toISOString(),
+    views: data.views || 0,
+    likes: data.likes || 0,
+    status: data.status || "published",
+    isPublic: data.isPublic !== undefined ? Boolean(data.isPublic) : (data.status === "published" || !data.status),
+    authorName: data.authorName || "Wanderlust 에디터",
+    categoryType: data.categoryType || "travel",
+    coverImageUrl: data.coverImageUrl,
+    isReserved: data.isReserved,
+    scheduledAt: data.scheduledAt,
+    recurrence: data.recurrence,
+  };
+}
+
 export async function savePostToFirestore(post: Omit<BlogPost, "id"> & { id?: string }): Promise<string> {
-  const isExisting = Boolean(post.id);
   const targetId = post.id || `post_${Date.now()}`;
   const fullPost: BlogPost = {
     ...post,
@@ -197,13 +232,12 @@ export async function savePostToFirestore(post: Omit<BlogPost, "id"> & { id?: st
     updatedAt: new Date().toISOString(),
   };
 
-  // Always sync to Local Storage for offline/instant UI feedback
   saveLocalPost(fullPost);
 
   try {
     await ensureAuth();
 
-    // 1. Save to blogs collection (matches user's Firestore Security Rules)
+    // 1. Save exclusively to 'blogs' collection as the raw archive source of truth
     const blogDocRef = doc(db, "blogs", targetId);
     await setDoc(
       blogDocRef,
@@ -215,23 +249,7 @@ export async function savePostToFirestore(post: Omit<BlogPost, "id"> & { id?: st
       { merge: true }
     );
 
-    // 2. Also save to travel_blog_posts collection for backward compatibility
-    try {
-      const travelDocRef = doc(db, "travel_blog_posts", targetId);
-      await setDoc(
-        travelDocRef,
-        {
-          ...fullPost,
-          updatedAtServer: Timestamp.now(),
-          createdAtServer: Timestamp.now(),
-        },
-        { merge: true }
-      );
-    } catch (tErr) {
-      // Ignored if travel_blog_posts has separate restrictions
-    }
-
-    console.log("Saved post to Firestore with ID:", targetId);
+    console.log("Saved post strictly to blogs archive collection:", targetId);
     return targetId;
   } catch (error) {
     console.error("Critical Firestore write failure:", error);
@@ -240,139 +258,188 @@ export async function savePostToFirestore(post: Omit<BlogPost, "id"> & { id?: st
 }
 
 export async function fetchPostsFromFirestore(): Promise<BlogPost[]> {
-  const postsMap = new Map<string, BlogPost>();
-
-  // 1. Fetch from 'blogs' (Matches user's current security rules)
   try {
+    await ensureAuth();
     const blogsRef = collection(db, "blogs");
     const querySnapshot = await getDocs(blogsRef);
+    const posts: BlogPost[] = [];
     querySnapshot.forEach((docSnap) => {
-      const data = docSnap.data();
-      postsMap.set(docSnap.id, {
-        id: docSnap.id,
-        title: data.title || "",
-        subtitle: data.subtitle || "",
-        destination: data.destination || "",
-        duration: data.duration || "",
-        concept: data.concept || "",
-        tone: data.tone || "",
-        targetAudience: data.targetAudience || "",
-        budget: data.budget || "",
-        season: data.season || "",
-        metaKeywords: data.metaKeywords || [],
-        hashtags: data.hashtags || [],
-        itinerary: data.itinerary || [],
-        markdownContent: data.markdownContent || "",
-        travelTips: data.travelTips || [],
-        seoDescription: data.seoDescription || "",
-        createdAt: data.createdAt || new Date().toISOString(),
-        updatedAt: data.updatedAt || new Date().toISOString(),
-        views: data.views || 0,
-        likes: data.likes || 0,
-        status: data.status || "published",
-        isPublic: data.isPublic !== undefined ? Boolean(data.isPublic) : (data.status === "published" || !data.status),
-        authorName: data.authorName || "Wanderlust 에디터",
-        categoryType: data.categoryType || "travel",
-        coverImageUrl: data.coverImageUrl,
-        isReserved: data.isReserved,
-        scheduledAt: data.scheduledAt,
-        recurrence: data.recurrence,
+      posts.push(mapDocToBlogPost(docSnap.id, docSnap.data()));
+    });
+    localStorage.setItem(LOCAL_STORAGE_POSTS_KEY, JSON.stringify(posts));
+    return posts;
+  } catch (err) {
+    console.error("fetchPostsFromFirestore failed:", err);
+    throw err; // Propagate error so UI is not misled
+  }
+}
+
+// ----------------------------------------------------
+// Real-time Subscriptions (onSnapshot)
+// ----------------------------------------------------
+
+export function subscribeToBlogs(
+  onNext: (posts: BlogPost[]) => void,
+  onError: (err: any) => void
+): () => void {
+  const q = collection(db, "blogs");
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const posts: BlogPost[] = [];
+      snapshot.forEach((docSnap) => {
+        posts.push(mapDocToBlogPost(docSnap.id, docSnap.data()));
       });
-    });
-  } catch (err) {
-    console.warn("Notice reading 'blogs' collection:", err);
-  }
-
-  // 2. Also fetch from 'travel_blog_posts' to merge any existing records
-  try {
-    const travelRef = collection(db, "travel_blog_posts");
-    const querySnapshot2 = await getDocs(travelRef);
-    querySnapshot2.forEach((docSnap) => {
-      if (!postsMap.has(docSnap.id)) {
-        const data = docSnap.data();
-        postsMap.set(docSnap.id, {
-          id: docSnap.id,
-          title: data.title || "",
-          subtitle: data.subtitle || "",
-          destination: data.destination || "",
-          duration: data.duration || "",
-          concept: data.concept || "",
-          tone: data.tone || "",
-          targetAudience: data.targetAudience || "",
-          budget: data.budget || "",
-          season: data.season || "",
-          metaKeywords: data.metaKeywords || [],
-          hashtags: data.hashtags || [],
-          itinerary: data.itinerary || [],
-          markdownContent: data.markdownContent || "",
-          travelTips: data.travelTips || [],
-          seoDescription: data.seoDescription || "",
-          createdAt: data.createdAt || new Date().toISOString(),
-          updatedAt: data.updatedAt || new Date().toISOString(),
-          views: data.views || 0,
-          likes: data.likes || 0,
-          status: data.status || "published",
-          isPublic: data.isPublic !== undefined ? Boolean(data.isPublic) : (data.status === "published" || !data.status),
-          authorName: data.authorName || "Wanderlust 에디터",
-          categoryType: data.categoryType || "travel",
-          coverImageUrl: data.coverImageUrl,
-          isReserved: data.isReserved,
-          scheduledAt: data.scheduledAt,
-          recurrence: data.recurrence,
-        });
-      }
-    });
-  } catch (err) {
-    console.warn("Notice reading 'travel_blog_posts' collection:", err);
-  }
-
-  const firestorePosts = Array.from(postsMap.values());
-  const localPosts = getLocalPosts();
-  
-  // Merge: Keep all local posts and override/supplement with Firestore posts
-  const mergedMap = new Map<string, BlogPost>();
-  localPosts.forEach((p) => {
-    // Exclude static sample templates from polluting the custom database
-    if (!p.id.startsWith("webzine_")) {
-      mergedMap.set(p.id, p);
+      onNext(posts);
+    },
+    (error) => {
+      console.error("[Subscription] Error subscribing to blogs:", error);
+      onError(error);
     }
-  });
-  firestorePosts.forEach((p) => {
-    mergedMap.set(p.id, p);
-  });
-  
-  const finalPosts = Array.from(mergedMap.values());
-  localStorage.setItem(LOCAL_STORAGE_POSTS_KEY, JSON.stringify(finalPosts));
+  );
+}
 
-  // Sync any local posts that are NOT in Firestore yet back to Firestore to ensure absolute reliability!
-  const unsyncedPosts = localPosts.filter(lp => !lp.id.startsWith("webzine_") && !postsMap.has(lp.id));
-  if (unsyncedPosts.length > 0) {
-    console.log(`[Sync] Automatically writing ${unsyncedPosts.length} unsynced local posts to Firestore...`);
-    // Run in background asynchronously to prevent blocking the initial page load
-    Promise.resolve().then(async () => {
-      for (const p of unsyncedPosts) {
-        try {
-          await savePostToFirestore(p);
-        } catch (err) {
-          console.warn(`[Sync] Failed to sync post ${p.id} to Firestore:`, err);
+export function subscribeToPublishedPosts(
+  onNext: (posts: BlogPost[]) => void,
+  onError: (err: any) => void
+): () => void {
+  const q = collection(db, "travel_blog_posts");
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const posts: BlogPost[] = [];
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        const isPublished = data.isPublic === true || data.status === "published" || (data.isPublic !== false && data.status !== "draft");
+        if (isPublished) {
+          posts.push(mapDocToBlogPost(docSnap.id, data));
         }
+      });
+      onNext(posts);
+    },
+    (error) => {
+      console.error("[Subscription] Error subscribing to travel_blog_posts:", error);
+      onError(error);
+    }
+  );
+}
+
+// ----------------------------------------------------
+// Force Server-Side Fetching (getDocsFromServer)
+// ----------------------------------------------------
+
+export async function fetchBlogsFromServer(): Promise<BlogPost[]> {
+  try {
+    const q = collection(db, "blogs");
+    const snapshot = await getDocsFromServer(q);
+    const posts: BlogPost[] = [];
+    snapshot.forEach((docSnap) => {
+      posts.push(mapDocToBlogPost(docSnap.id, docSnap.data()));
+    });
+    localStorage.setItem(LOCAL_STORAGE_POSTS_KEY, JSON.stringify(posts));
+    return posts;
+  } catch (error) {
+    console.error("[Server Fetch] Error fetching blogs directly from server:", error);
+    throw error;
+  }
+}
+
+export async function fetchPublishedPostsFromServer(): Promise<BlogPost[]> {
+  try {
+    const q = collection(db, "travel_blog_posts");
+    const snapshot = await getDocsFromServer(q);
+    const posts: BlogPost[] = [];
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      const isPublished = data.isPublic === true || data.status === "published" || (data.isPublic !== false && data.status !== "draft");
+      if (isPublished) {
+        posts.push(mapDocToBlogPost(docSnap.id, data));
       }
     });
+    return posts;
+  } catch (error) {
+    console.error("[Server Fetch] Error fetching travel_blog_posts directly from server:", error);
+    throw error;
   }
+}
 
-  return finalPosts;
+// ----------------------------------------------------
+// Atomic Batch Publish / Unpublish Operations
+// ----------------------------------------------------
+
+export async function publishPostAtomic(post: BlogPost): Promise<void> {
+  await ensureAuth();
+  const batch = writeBatch(db);
+  const targetId = post.id;
+  const updatedPost: BlogPost = {
+    ...post,
+    status: "published",
+    isPublic: true,
+    updatedAt: new Date().toISOString(),
+  };
+
+  // 1. Update blogs raw document
+  const blogRef = doc(db, "blogs", targetId);
+  batch.set(blogRef, {
+    ...updatedPost,
+    updatedAtServer: Timestamp.now(),
+  }, { merge: true });
+
+  // 2. Set travel_blog_posts published copy document
+  const travelRef = doc(db, "travel_blog_posts", targetId);
+  batch.set(travelRef, {
+    ...updatedPost,
+    updatedAtServer: Timestamp.now(),
+  }, { merge: true });
+
+  await batch.commit();
+  
+  // Update local cache
+  saveLocalPost(updatedPost);
+}
+
+export async function unpublishPostAtomic(postId: string): Promise<void> {
+  await ensureAuth();
+  const batch = writeBatch(db);
+
+  // 1. Update status to draft/unpublished in blogs
+  const blogRef = doc(db, "blogs", postId);
+  batch.update(blogRef, {
+    status: "draft",
+    isPublic: false,
+    updatedAt: new Date().toISOString(),
+    updatedAtServer: Timestamp.now(),
+  });
+
+  // 2. Remove published document copy from travel_blog_posts
+  const travelRef = doc(db, "travel_blog_posts", postId);
+  batch.delete(travelRef);
+
+  await batch.commit();
+
+  // Update local cache
+  const localPosts = getLocalPosts();
+  const found = localPosts.find(p => p.id === postId);
+  if (found) {
+    found.status = "draft";
+    found.isPublic = false;
+    found.updatedAt = new Date().toISOString();
+    saveLocalPost(found);
+  }
 }
 
 export async function deletePostFromFirestore(postId: string): Promise<void> {
   deleteLocalPost(postId);
   try {
     await ensureAuth();
-    await Promise.allSettled([
-      deleteDoc(doc(db, "blogs", postId)),
-      deleteDoc(doc(db, "travel_blog_posts", postId)),
-    ]);
+    const batch = writeBatch(db);
+    batch.delete(doc(db, "blogs", postId));
+    batch.delete(doc(db, "travel_blog_posts", postId));
+    await batch.commit();
+    console.log("Deleted post atomically from both collections:", postId);
   } catch (error) {
-    console.warn("Firestore delete fallback:", error);
+    console.error("Firestore delete atomic failed:", error);
+    throw error;
   }
 }
 
