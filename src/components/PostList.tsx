@@ -17,11 +17,15 @@ import {
   Globe2,
   CheckCircle2,
   RefreshCw,
+  ShieldAlert,
+  Info,
+  AlertTriangle,
 } from "lucide-react";
 import { BlogPost } from "../types";
 import { getSafeUnsplashCoverUrl } from "../utils/imageHelper";
 import { EditPostModal } from "./EditPostModal";
 import { EmbedShareModal } from "./EmbedShareModal";
+import { firebaseConfig, auth } from "../lib/firebase";
 
 interface PostListProps {
   posts: BlogPost[];
@@ -56,6 +60,7 @@ export const PostList: React.FC<PostListProps> = ({
   const [postToDelete, setPostToDelete] = useState<BlogPost | null>(null);
   const [embedPost, setEmbedPost] = useState<BlogPost | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
 
   const filteredPosts = posts.filter(
     (p) =>
@@ -441,6 +446,114 @@ export const PostList: React.FC<PostListProps> = ({
           </div>
         </div>
       )}
+      {/* Firebase Environment & Diagnostics Panel */}
+      <div className="bg-white border border-stone-200/80 rounded-3xl p-6 shadow-xl shadow-stone-200/40 space-y-4">
+        <button
+          type="button"
+          onClick={() => setShowDiagnostics(!showDiagnostics)}
+          className="w-full flex items-center justify-between text-left text-stone-800 focus:outline-none cursor-pointer"
+        >
+          <div className="flex items-center space-x-2">
+            <ShieldAlert className="w-5 h-5 text-orange-500 animate-pulse" />
+            <h2 className="text-sm sm:text-base font-extrabold text-stone-900">파이어베이스 자가 진단 및 실시간 환경변수 검사</h2>
+          </div>
+          <span className="text-xs text-orange-600 font-bold hover:underline">
+            {showDiagnostics ? "접기 ▲" : "진단 및 환경변수 비교 펼치기 ▼"}
+          </span>
+        </button>
+
+        {showDiagnostics && (
+          <div className="pt-4 border-t border-stone-100 space-y-6 text-xs animate-fade-in">
+            <div className="p-4 bg-orange-50/50 border border-orange-100 rounded-2xl space-y-2">
+              <div className="flex items-center space-x-1.5 text-orange-800 font-bold">
+                <Info className="w-4 h-4 text-orange-500" />
+                <span>실행 환경 및 파이어베이스 연결 정보</span>
+              </div>
+              <p className="text-stone-500 text-[11px] leading-relaxed">
+                Cloud Run과 Vercel 등 배포 주소에 따라 파이어베이스 설정이 다르게 적용되거나 환경변수가 덮어씌워지는 경우를 방지하기 위해, 웹 브라우저가 런타임에 읽어들인 실제 연결 매개변수를 노출합니다. 보안을 위하여 API 키 및 민감성 정보는 일절 노출되지 않습니다.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Client Firebase Config Display */}
+              <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4 space-y-3">
+                <h3 className="font-bold text-stone-900 flex items-center space-x-1.5 border-b border-stone-200 pb-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                  <span>클라이언트 환경변수 (Vite Runtime)</span>
+                </h3>
+                <div className="space-y-1.5 text-stone-600 font-mono text-[11px]">
+                  <div className="flex justify-between py-0.5 border-b border-stone-100/50">
+                    <span className="text-stone-400">Project ID</span>
+                    <span className="font-bold text-stone-800">{firebaseConfig.projectId || "Undefined"}</span>
+                  </div>
+                  <div className="flex justify-between py-0.5 border-b border-stone-100/50">
+                    <span className="text-stone-400">Database ID</span>
+                    <span className="font-bold text-stone-800">{firebaseConfig.firestoreDatabaseId || "(default)"}</span>
+                  </div>
+                  <div className="flex justify-between py-0.5 border-b border-stone-100/50">
+                    <span className="text-stone-400">Auth Domain</span>
+                    <span className="font-bold text-stone-800">{firebaseConfig.authDomain || "Undefined"}</span>
+                  </div>
+                  <div className="flex justify-between py-0.5">
+                    <span className="text-stone-400">App ID</span>
+                    <span className="font-bold text-stone-800">{firebaseConfig.appId || "Undefined"}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status & Auth Display */}
+              <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4 space-y-3">
+                <h3 className="font-bold text-stone-900 flex items-center space-x-1.5 border-b border-stone-200 pb-2">
+                  <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+                  <span>인증 세션 및 Firestore 상태</span>
+                </h3>
+                <div className="space-y-1.5 text-stone-600 font-mono text-[11px]">
+                  <div className="flex justify-between py-0.5 border-b border-stone-100/50">
+                    <span className="text-stone-400">인증 상태</span>
+                    <span className={`font-bold ${auth.currentUser ? "text-emerald-600" : "text-amber-600"}`}>
+                      {auth.currentUser ? "인증 완료 (Authenticated)" : "미인증 (Unauthenticated)"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-0.5 border-b border-stone-100/50">
+                    <span className="text-stone-400">사용자 UID</span>
+                    <span className="font-bold text-stone-800 truncate max-w-[150px]" title={auth.currentUser?.uid}>
+                      {auth.currentUser?.uid || "None"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-0.5 border-b border-stone-100/50">
+                    <span className="text-stone-400">익명 로그인</span>
+                    <span className="font-bold text-stone-800">
+                      {auth.currentUser ? (auth.currentUser.isAnonymous ? "Yes (익명 로그인)" : "No (구글/이메일)") : "N/A"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-0.5">
+                    <span className="text-stone-400">DB 실시간 상태</span>
+                    <span className={`font-bold ${dbStatus === "success" ? "text-emerald-600" : dbStatus === "error" ? "text-rose-600" : "text-amber-600"}`}>
+                      {dbStatus === "success" ? "동기화 성공" : dbStatus === "error" ? "연결 에러 / 권한 없음" : "연결 중 / 로딩 중"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Error Message Details */}
+            {dbStatus === "error" && dbErrorMessage && (
+              <div className="p-4 bg-rose-50 border border-rose-100 text-rose-800 rounded-2xl space-y-2">
+                <div className="flex items-center space-x-1.5 font-bold">
+                  <AlertTriangle className="w-4 h-4 text-rose-500" />
+                  <span>실시간 DB 조회 에러 상세정보 (Firestore Connection Error)</span>
+                </div>
+                <p className="font-mono text-[11px] leading-relaxed text-rose-700 bg-white border border-rose-100 p-3 rounded-xl overflow-x-auto">
+                  {dbErrorMessage}
+                </p>
+                <p className="text-[10px] text-stone-500 leading-relaxed">
+                  💡 <strong>해결 가이드:</strong> 만약 <code>permission-denied</code> 오류가 발생할 경우, 파이어베이스 규칙(firestore.rules)에서 <code>blogs</code> 및 <code>travel_blog_posts</code> 컬렉션에 대한 읽기/쓰기 권한이 승인되어 있는지 확인하십시오. 현재 로그인 UID 상태와 Cloud Run의 설정이 Vercel 환경과 정확히 일치하는지 비교할 수 있습니다.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

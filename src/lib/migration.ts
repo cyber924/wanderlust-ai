@@ -5,6 +5,7 @@ import {
   getDocs,
   setDoc,
   doc,
+  getDoc,
   Timestamp,
   writeBatch,
 } from "firebase/firestore";
@@ -166,17 +167,33 @@ export async function runDatabaseMigration(
     }
   }
 
-  // 5. Batch Write into New Firebase Firestore DB
+  // 5. Batch Write into New Firebase Firestore DB with Safe ID & updatedAt Comparison
   const { ensureAuth } = await import("./firebase");
   await ensureAuth();
 
   const allPosts = Array.from(postMap.values());
-  log(`✍️ 신규 DB(studio-1232942596-90a88)에 총 ${allPosts.length}편의 블로그 글 동기화 중...`);
+  log(`✍️ 신규 DB(studio-1232942596-90a88)에 총 ${allPosts.length}편의 블로그 글 동기화 중 (중복 및 최신 상태 비교 포함)...`);
 
-  // Write posts to 'blogs' collection
+  // Write posts to 'blogs' collection safely
   for (const post of allPosts) {
     try {
       const blogRef = doc(newDb, "blogs", post.id);
+      
+      // Compare ID and updatedAt before writing to protect existing newer data
+      const existingDocSnap = await getDoc(blogRef);
+      if (existingDocSnap.exists()) {
+        const existingData = existingDocSnap.data();
+        const existingUpdatedAt = existingData?.updatedAt;
+        if (existingUpdatedAt && post.updatedAt) {
+          const existingTime = new Date(existingUpdatedAt).getTime();
+          const incomingTime = new Date(post.updatedAt).getTime();
+          if (existingTime >= incomingTime) {
+            log(`⏭️ [보존] '${post.title}' (ID: ${post.id}) 문서는 신규 DB가 이미 더 최신이거나 같으므로 이전을 건너뜁니다.`);
+            continue;
+          }
+        }
+      }
+
       await setDoc(
         blogRef,
         {
@@ -189,17 +206,26 @@ export async function runDatabaseMigration(
       );
       saveLocalPost(post);
       postsMigrated++;
+      log(`✅ [이전완료] '${post.title}' (ID: ${post.id})이 신규 DB로 이전되었습니다.`);
     } catch (writeErr: any) {
       log(`⚠️ 포스트(${post.id}) 쓰기 오류: ${writeErr?.message}`);
     }
   }
 
-  // Write images to 'images' collection
+  // Write images to 'images' collection safely
   const allImages = Array.from(imageMap.values());
-  log(`✍️ 신규 DB에 총 ${allImages.length}개의 AI 스냅 이미지 동기화 중...`);
+  log(`✍️ 신규 DB에 총 ${allImages.length}개의 AI 스냅 이미지 동기화 중 (중복 비교 포함)...`);
   for (const img of allImages) {
     try {
       const imgRef = doc(newDb, "images", img.id);
+      
+      // Compare existence for images to protect existing data
+      const existingImgSnap = await getDoc(imgRef);
+      if (existingImgSnap.exists()) {
+        log(`⏭️ [보존] 이미지 (ID: ${img.id})가 이미 신규 DB에 존재하므로 이전을 건너뜁니다.`);
+        continue;
+      }
+
       await setDoc(
         imgRef,
         {
@@ -211,6 +237,7 @@ export async function runDatabaseMigration(
       );
       saveLocalImage(img);
       imagesMigrated++;
+      log(`✅ [이전완료] 이미지 (ID: ${img.id})가 신규 DB로 이전되었습니다.`);
     } catch (writeImgErr: any) {
       log(`⚠️ 이미지(${img.id}) 쓰기 오류: ${writeImgErr?.message}`);
     }

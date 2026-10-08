@@ -144,7 +144,7 @@ export function getLocalPosts(): BlogPost[] {
   } catch (e) {
     // ignore
   }
-  return SAMPLE_WEBZINE_ARTICLES;
+  return [];
 }
 
 export function saveLocalPost(post: BlogPost) {
@@ -559,21 +559,6 @@ export async function fetchImagesFromFirestore(): Promise<GeneratedImage[]> {
 
   const finalImages = Array.from(mergedImgMap.values());
   localStorage.setItem(LOCAL_STORAGE_IMAGES_KEY, JSON.stringify(finalImages));
-
-  // Sync any local images that are not in Firestore yet to Firestore in the background
-  const unsyncedImages = localImages.filter(li => !imagesMap.has(li.id));
-  if (unsyncedImages.length > 0) {
-    console.log(`[Sync] Automatically writing ${unsyncedImages.length} unsynced local images to Firestore...`);
-    Promise.resolve().then(async () => {
-      for (const img of unsyncedImages) {
-        try {
-          await saveImageToFirestore(img);
-        } catch (err) {
-          console.warn(`[Sync] Failed to sync image ${img.id} to Firestore:`, err);
-        }
-      }
-    });
-  }
 
   return finalImages;
 }
