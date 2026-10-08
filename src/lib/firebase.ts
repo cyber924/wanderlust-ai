@@ -26,7 +26,7 @@ import {
   Timestamp,
   getDocFromServer,
 } from "firebase/firestore";
-import { BlogPost, GeneratedImage, UserProfile } from "../types";
+import { BlogPost, GeneratedImage, UserProfile, ScheduledTask } from "../types";
 import { SAMPLE_WEBZINE_ARTICLES } from "../data/webzineSampleArticles";
 import firebaseConfigJson from "../../firebase-applet-config.json";
 
@@ -222,8 +222,8 @@ export async function savePostToFirestore(post: Omit<BlogPost, "id"> & { id?: st
     console.log("Saved post to Firestore with ID:", targetId);
     return targetId;
   } catch (error) {
-    console.warn("Firestore save fallback to Local Storage:", error);
-    return targetId;
+    console.error("Critical Firestore write failure:", error);
+    throw error;
   }
 }
 
@@ -233,8 +233,7 @@ export async function fetchPostsFromFirestore(): Promise<BlogPost[]> {
   // 1. Fetch from 'blogs' (Matches user's current security rules)
   try {
     const blogsRef = collection(db, "blogs");
-    const q = query(blogsRef, limit(50));
-    const querySnapshot = await getDocs(q);
+    const querySnapshot = await getDocs(blogsRef);
     querySnapshot.forEach((docSnap) => {
       const data = docSnap.data();
       postsMap.set(docSnap.id, {
@@ -275,8 +274,7 @@ export async function fetchPostsFromFirestore(): Promise<BlogPost[]> {
   // 2. Also fetch from 'travel_blog_posts' to merge any existing records
   try {
     const travelRef = collection(db, "travel_blog_posts");
-    const q2 = query(travelRef, limit(50));
-    const querySnapshot2 = await getDocs(q2);
+    const querySnapshot2 = await getDocs(travelRef);
     querySnapshot2.forEach((docSnap) => {
       if (!postsMap.has(docSnap.id)) {
         const data = docSnap.data();
@@ -316,13 +314,41 @@ export async function fetchPostsFromFirestore(): Promise<BlogPost[]> {
     console.warn("Notice reading 'travel_blog_posts' collection:", err);
   }
 
-  if (postsMap.size > 0) {
-    const firestorePosts = Array.from(postsMap.values());
-    localStorage.setItem(LOCAL_STORAGE_POSTS_KEY, JSON.stringify(firestorePosts));
-    return firestorePosts;
+  const firestorePosts = Array.from(postsMap.values());
+  const localPosts = getLocalPosts();
+  
+  // Merge: Keep all local posts and override/supplement with Firestore posts
+  const mergedMap = new Map<string, BlogPost>();
+  localPosts.forEach((p) => {
+    // Exclude static sample templates from polluting the custom database
+    if (!p.id.startsWith("webzine_")) {
+      mergedMap.set(p.id, p);
+    }
+  });
+  firestorePosts.forEach((p) => {
+    mergedMap.set(p.id, p);
+  });
+  
+  const finalPosts = Array.from(mergedMap.values());
+  localStorage.setItem(LOCAL_STORAGE_POSTS_KEY, JSON.stringify(finalPosts));
+
+  // Sync any local posts that are NOT in Firestore yet back to Firestore to ensure absolute reliability!
+  const unsyncedPosts = localPosts.filter(lp => !lp.id.startsWith("webzine_") && !postsMap.has(lp.id));
+  if (unsyncedPosts.length > 0) {
+    console.log(`[Sync] Automatically writing ${unsyncedPosts.length} unsynced local posts to Firestore...`);
+    // Run in background asynchronously to prevent blocking the initial page load
+    Promise.resolve().then(async () => {
+      for (const p of unsyncedPosts) {
+        try {
+          await savePostToFirestore(p);
+        } catch (err) {
+          console.warn(`[Sync] Failed to sync post ${p.id} to Firestore:`, err);
+        }
+      }
+    });
   }
 
-  return getLocalPosts();
+  return finalPosts;
 }
 
 export async function deletePostFromFirestore(postId: string): Promise<void> {
@@ -398,8 +424,7 @@ export async function fetchImagesFromFirestore(): Promise<GeneratedImage[]> {
   // 1. Fetch from 'images' collection
   try {
     const imagesRef = collection(db, "images");
-    const q = query(imagesRef, limit(50));
-    const querySnapshot = await getDocs(q);
+    const querySnapshot = await getDocs(imagesRef);
     querySnapshot.forEach((docSnap) => {
       const data = docSnap.data();
       imagesMap.set(docSnap.id, {
@@ -423,8 +448,7 @@ export async function fetchImagesFromFirestore(): Promise<GeneratedImage[]> {
   // 2. Also fetch from 'travel_gallery_images'
   try {
     const travelImgRef = collection(db, "travel_gallery_images");
-    const q2 = query(travelImgRef, limit(50));
-    const querySnapshot2 = await getDocs(q2);
+    const querySnapshot2 = await getDocs(travelImgRef);
     querySnapshot2.forEach((docSnap) => {
       if (!imagesMap.has(docSnap.id)) {
         const data = docSnap.data();
@@ -447,13 +471,32 @@ export async function fetchImagesFromFirestore(): Promise<GeneratedImage[]> {
     console.warn("Notice reading 'travel_gallery_images' collection:", err);
   }
 
-  if (imagesMap.size > 0) {
-    const firestoreImages = Array.from(imagesMap.values());
-    localStorage.setItem(LOCAL_STORAGE_IMAGES_KEY, JSON.stringify(firestoreImages));
-    return firestoreImages;
+  const firestoreImages = Array.from(imagesMap.values());
+  const localImages = getLocalImages();
+
+  const mergedImgMap = new Map<string, GeneratedImage>();
+  localImages.forEach((img) => mergedImgMap.set(img.id, img));
+  firestoreImages.forEach((img) => mergedImgMap.set(img.id, img));
+
+  const finalImages = Array.from(mergedImgMap.values());
+  localStorage.setItem(LOCAL_STORAGE_IMAGES_KEY, JSON.stringify(finalImages));
+
+  // Sync any local images that are not in Firestore yet to Firestore in the background
+  const unsyncedImages = localImages.filter(li => !imagesMap.has(li.id));
+  if (unsyncedImages.length > 0) {
+    console.log(`[Sync] Automatically writing ${unsyncedImages.length} unsynced local images to Firestore...`);
+    Promise.resolve().then(async () => {
+      for (const img of unsyncedImages) {
+        try {
+          await saveImageToFirestore(img);
+        } catch (err) {
+          console.warn(`[Sync] Failed to sync image ${img.id} to Firestore:`, err);
+        }
+      }
+    });
   }
 
-  return getLocalImages();
+  return finalImages;
 }
 
 export async function deleteImageFromFirestore(imageId: string): Promise<void> {
@@ -521,3 +564,60 @@ export async function linkImageToBlogInFirestore(
     console.warn("Firestore linkImage fallback:", error);
   }
 }
+
+// ----------------------------------------------------
+// Scheduled Queue (Cron Autopilot) Operations
+// ----------------------------------------------------
+
+export async function saveScheduledTaskToFirestore(task: ScheduledTask): Promise<void> {
+  try {
+    await ensureAuth();
+    const docRef = doc(db, "scheduled_queue", task.id);
+    await setDoc(docRef, {
+      ...task,
+      updatedAtServer: Timestamp.now(),
+    }, { merge: true });
+    console.log("Saved scheduled task to Firestore:", task.id);
+  } catch (error) {
+    console.error("Error saving scheduled task:", error);
+    throw error;
+  }
+}
+
+export async function fetchScheduledTasksFromFirestore(): Promise<ScheduledTask[]> {
+  const tasks: ScheduledTask[] = [];
+  try {
+    const queueRef = collection(db, "scheduled_queue");
+    const q = query(queueRef, orderBy("scheduledAt", "asc"));
+    const querySnapshot = await getDocs(q);
+    querySnapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      tasks.push({
+        id: docSnap.id,
+        categoryType: data.categoryType || "travel",
+        topicKeywords: data.topicKeywords || [],
+        scheduledAt: data.scheduledAt || new Date().toISOString(),
+        recurrence: data.recurrence || "none",
+        persona: data.persona || "default",
+        status: data.status || "pending",
+        lastExecutedPostId: data.lastExecutedPostId,
+        createdAt: data.createdAt || new Date().toISOString(),
+      });
+    });
+  } catch (err) {
+    console.warn("Notice reading 'scheduled_queue' collection:", err);
+  }
+  return tasks;
+}
+
+export async function deleteScheduledTaskFromFirestore(taskId: string): Promise<void> {
+  try {
+    await ensureAuth();
+    await deleteDoc(doc(db, "scheduled_queue", taskId));
+    console.log("Deleted scheduled task from Firestore:", taskId);
+  } catch (error) {
+    console.error("Error deleting scheduled task:", error);
+    throw error;
+  }
+}
+

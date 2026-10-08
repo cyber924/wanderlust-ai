@@ -13,8 +13,10 @@ import { EmbedShareModal } from "./components/EmbedShareModal";
 import { LoginRequiredView } from "./components/LoginRequiredView";
 import { SNSStudio } from "./components/SNSStudio";
 import { AdminMenu } from "./components/AdminMenu";
+import { SchedulingView } from "./components/SchedulingView";
+import { getRandomAutopilotTopics } from "./utils/autopilotTopics";
 import { WEBZINE_SAMPLE_ARTICLES } from "./data/webzineSampleArticles";
-import { BlogPost, GeneratedImage, TravelTemplate, UserProfile } from "./types";
+import { BlogPost, GeneratedImage, TravelTemplate, UserProfile, ScheduledTask } from "./types";
 import {
   fetchPostsFromFirestore,
   savePostToFirestore,
@@ -24,6 +26,9 @@ import {
   deleteImageFromFirestore,
   clearAllImagesFromFirestore,
   linkImageToBlogInFirestore,
+  fetchScheduledTasksFromFirestore,
+  saveScheduledTaskToFirestore,
+  deleteScheduledTaskFromFirestore,
   getLocalPosts,
   getLocalImages,
   auth,
@@ -33,7 +38,7 @@ import { Compass, Sparkles, FolderHeart, CheckCircle2 } from "lucide-react";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<
-    "generator" | "image-generator" | "templates" | "posts" | "webzine" | "auth" | "sns" | "admin" | "pre-search"
+    "generator" | "image-generator" | "templates" | "posts" | "webzine" | "auth" | "sns" | "admin" | "pre-search" | "scheduling"
   >("pre-search");
   const [categoryType, setCategoryType] = useState<
     "travel" | "life_info" | "food" | "trend"
@@ -169,6 +174,188 @@ export default function App() {
     }
     loadData();
   }, []);
+
+  // Global Autopilot / Deferred Sync Engine (Checks current time vs scheduled task times)
+  useEffect(() => {
+    let active = true;
+    async function scanScheduledTasks() {
+      try {
+        const scheduledTasks = await fetchScheduledTasksFromFirestore();
+        const pendingPassedTasks = scheduledTasks.filter(
+          (task) => task.status === "pending" && new Date(task.scheduledAt) <= new Date()
+        );
+
+        if (pendingPassedTasks.length === 0) return;
+
+        console.log(`[Autopilot] Found ${pendingPassedTasks.length} pending tasks to auto-publish!`);
+
+        for (const task of pendingPassedTasks) {
+          if (!active) break;
+          
+          // 1. Mark as processing to avoid duplicate execution
+          task.status = "processing";
+          await saveScheduledTaskToFirestore(task);
+
+          const totalToGenerate = task.publishCount || 1;
+          const chosenTopics = task.topicKeywords && task.topicKeywords.length >= totalToGenerate
+            ? task.topicKeywords
+            : getRandomAutopilotTopics(task.categoryType, totalToGenerate);
+
+          console.log(`[Autopilot] Executing task with theme: ${task.categoryType}, count: ${totalToGenerate}, topics: ${chosenTopics.join(", ")}`);
+
+          const generatedPostIds: string[] = [];
+          const newPostsList: BlogPost[] = [];
+          let hasSucceededAny = false;
+
+          for (let i = 0; i < totalToGenerate; i++) {
+            if (!active) break;
+            const topic = chosenTopics[i] || "인기 핫플레이스 가이드";
+
+            try {
+              // 2. Generate blog content using server endpoint
+              const res = await fetch("/api/generate-blog", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  categoryType: task.categoryType,
+                  destination: topic,
+                  duration: task.categoryType === "life_info" ? "소요시간 10분" : "2박 3일",
+                  travelStyle: task.categoryType === "life_info" ? "실생활 유용한 살림 가이드" : "감성 명소 및 이색 먹거리",
+                  keywords: [topic],
+                  tone: "🔥 네이버 스마트블록 & DIA+ 상위노출 최적화체 (키워드/경험 중심)",
+                  targetAudience: "2030 감성 세대 및 네이버 블로그 검색 독자",
+                  language: "한국어"
+                })
+              });
+
+              const result = await res.json();
+              if (result.success && result.data) {
+                const generated = result.data;
+
+                // Cover Image mapping via Pollinations flux model
+                const cleanPrompt = encodeURIComponent(topic + " travel scenery aesthetic");
+                const seed = Math.floor(Math.random() * 999999) + i * 133;
+                const coverImageUrl = `https://image.pollinations.ai/prompt/scenery%20aesthetic%20${cleanPrompt}?width=1200&height=800&seed=${seed}&nologo=true&model=flux`;
+
+                const newPost: BlogPost = {
+                  id: `post_auto_${Date.now()}_${i}`,
+                  title: generated.title || `[자동발행] ${topic}`,
+                  subtitle: generated.subtitle || "",
+                  destination: generated.destination || topic,
+                  duration: generated.duration || "1박 2일",
+                  concept: generated.concept || "감성 힐링 투어",
+                  tone: generated.tone || "친근하고 감성적인 ~해요체",
+                  targetAudience: generated.targetAudience || "전체 독자층",
+                  budget: generated.budget || "합리적인 소비",
+                  season: generated.season || "사계절 추천",
+                  categoryType: task.categoryType,
+                  categoryName:
+                    task.categoryType === "travel"
+                      ? "여행"
+                      : task.categoryType === "food"
+                      ? "맛집/카페"
+                      : task.categoryType === "trend"
+                      ? "트렌드"
+                      : "생활정보",
+                  metaKeywords: generated.metaKeywords || [topic],
+                  hashtags: generated.hashtags || [`#${topic}`],
+                  itinerary: generated.itinerary || [],
+                  markdownContent: generated.markdownContent || "",
+                  travelTips: generated.travelTips || [],
+                  seoDescription: generated.seoDescription || "",
+                  coverImageUrl,
+                  views: Math.floor(Math.random() * 45) + 12,
+                  likes: Math.floor(Math.random() * 8) + 1,
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString(),
+                  status: "published",
+                  isPublic: true,
+                  authorName:
+                    task.persona === "minji"
+                      ? "민지 (20대 트렌드 에디터)"
+                      : task.persona === "sophie"
+                      ? "소피 (미식 푸드 디렉터)"
+                      : task.persona === "yujin"
+                      ? "유진 (살림 리빙 퀸)"
+                      : task.persona === "park"
+                      ? "박 부장 (실전 배테랑 여행가)"
+                      : "Wanderlust AI 오토파일럿"
+                };
+
+                const savedId = await savePostToFirestore(newPost);
+                const finalPost = { ...newPost, id: savedId };
+
+                newPostsList.push(finalPost);
+                generatedPostIds.push(savedId);
+                hasSucceededAny = true;
+              }
+            } catch (err) {
+              console.error(`[Autopilot] Failed to generate post for topic ${topic}:`, err);
+            }
+          }
+
+          if (hasSucceededAny) {
+            // Update client state with all successfully generated posts
+            setSavedPosts((prev) => [...newPostsList, ...prev]);
+            setToastMessage(`⏰ [예약발행 성공] 총 ${newPostsList.length}건의 기사가 백그라운드 오토파일럿으로 자동 발행되었습니다!`);
+            setTimeout(() => setToastMessage(null), 5000);
+
+            // Handle recurrence or set as completed
+            if (task.recurrence && task.recurrence !== "none") {
+              const nextSched = new Date(task.scheduledAt);
+              if (task.recurrence === "daily_8am") {
+                nextSched.setDate(nextSched.getDate() + 1);
+                nextSched.setHours(8, 0, 0, 0);
+              } else if (task.recurrence === "daily_6pm") {
+                nextSched.setDate(nextSched.getDate() + 1);
+                nextSched.setHours(18, 0, 0, 0);
+              } else if (task.recurrence === "weekly_9am") {
+                nextSched.setDate(nextSched.getDate() + 7);
+                nextSched.setHours(9, 0, 0, 0);
+              }
+
+              while (nextSched <= new Date()) {
+                nextSched.setDate(nextSched.getDate() + 1);
+              }
+
+              const nextTopics = getRandomAutopilotTopics(task.categoryType, totalToGenerate);
+
+              const updatedTask: ScheduledTask = {
+                ...task,
+                topicKeywords: nextTopics,
+                scheduledAt: nextSched.toISOString(),
+                status: "pending",
+                lastExecutedPostId: generatedPostIds[0]
+              };
+              await saveScheduledTaskToFirestore(updatedTask);
+            } else {
+              const updatedTask: ScheduledTask = {
+                ...task,
+                status: "completed",
+                lastExecutedPostId: generatedPostIds[0]
+              };
+              await saveScheduledTaskToFirestore(updatedTask);
+            }
+          } else {
+            task.status = "failed";
+            await saveScheduledTaskToFirestore(task);
+          }
+        }
+      } catch (err) {
+        console.error("[Autopilot] Scan / trigger failed:", err);
+      }
+    }
+
+    if (isDataLoaded) {
+      scanScheduledTasks();
+      // Periodically scan every 45 seconds while user is on page
+      const interval = setInterval(scanScheduledTasks, 45000);
+      return () => {
+        active = false;
+        clearInterval(interval);
+      };
+    }
+  }, [isDataLoaded]);
 
   // Calculate if the current URL points to a non-existent blog post (yielding a 404)
   const isUrl404 = useMemo(() => {
@@ -848,6 +1035,15 @@ export default function App() {
                     onNavigateToSNSArchive={() => setActiveTab("sns")}
                   />
                 )
+              )}
+
+              {activeTab === "scheduling" && (
+                <SchedulingView
+                  user={user}
+                  onShowToast={showToast}
+                  savedPosts={savedPosts}
+                  setSavedPosts={setSavedPosts}
+                />
               )}
 
               {activeTab === "admin" && (

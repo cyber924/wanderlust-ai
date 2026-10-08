@@ -14,8 +14,8 @@ import {
 import { UserProfile } from "../types";
 
 interface HeaderProps {
-  activeTab: "generator" | "image-generator" | "templates" | "posts" | "webzine" | "auth" | "sns" | "admin" | "pre-search";
-  setActiveTab: (tab: "generator" | "image-generator" | "templates" | "posts" | "webzine" | "auth" | "sns" | "admin" | "pre-search") => void;
+  activeTab: "generator" | "image-generator" | "templates" | "posts" | "webzine" | "auth" | "sns" | "admin" | "pre-search" | "scheduling";
+  setActiveTab: (tab: "generator" | "image-generator" | "templates" | "posts" | "webzine" | "auth" | "sns" | "admin" | "pre-search" | "scheduling") => void;
   categoryType: "travel" | "life_info";
   setCategoryType: (category: "travel" | "life_info") => void;
   user: UserProfile | null;
@@ -106,6 +106,19 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <span className="text-sm">💡</span>
               <span>생활정보</span>
+            </button>
+
+            {/* ⏰ 예약 발행 */}
+            <button
+              onClick={() => setActiveTab("scheduling")}
+              className={`flex items-center space-x-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                activeTab === "scheduling"
+                  ? "bg-amber-50 text-amber-700 border border-amber-300 font-bold shadow-xs animate-pulse"
+                  : "text-stone-600 hover:text-stone-900 hover:bg-stone-100"
+              }`}
+            >
+              <span className="text-sm">⏰</span>
+              <span>예약 발행</span>
             </button>
 
             {/* 📸 AI 이미지 생성 */}

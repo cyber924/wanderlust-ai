@@ -184,3 +184,17 @@ export interface GenerateSNSRequest {
   sourceBlogTitle?: string;
 }
 
+export interface ScheduledTask {
+  id: string;
+  categoryType: "travel" | "life_info" | "food" | "trend";
+  topicKeywords: string[];
+  scheduledAt: string; // ISO string
+  recurrence: "none" | "daily_8am" | "daily_6pm" | "weekly_9am";
+  persona: "minji" | "sophie" | "yujin" | "park" | "default";
+  status: "pending" | "processing" | "completed" | "failed";
+  lastExecutedPostId?: string;
+  createdAt: string; // ISO string
+  publishCount?: number;
+}
+
+

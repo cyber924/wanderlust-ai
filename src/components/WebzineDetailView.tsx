@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { getSafeUnsplashCoverUrl } from "../utils/imageHelper";
 import {
   Heart,
@@ -41,6 +41,55 @@ export const WebzineDetailView: React.FC<WebzineDetailViewProps> = ({
   const cacheBuster = `?v=${new Date(post.createdAt).getTime()}`;
   const rawUrl = getSafeUnsplashCoverUrl(post);
   const coverUrl = `${rawUrl}${rawUrl.includes("?") ? "&" : ""}${cacheBuster}`;
+
+  // Extract major headers (##) from post.markdownContent with high reliability fallback
+  const tocItems = useMemo(() => {
+    const items: { text: string; id: string }[] = [];
+    const markdown = post.markdownContent || "";
+    
+    // Parse ## lines
+    const lines = markdown.split("\n");
+    lines.forEach((line) => {
+      if (line.startsWith("## ")) {
+        const text = line.replace("## ", "").trim();
+        // Generate an anchor ID matching itinerary days or just simple slugs
+        let targetId = "";
+        if (text.includes("DAY 1") || text.includes("STEP 1") || text.toLowerCase().includes("day 1")) {
+          targetId = "day-section-0";
+        } else if (text.includes("DAY 2") || text.includes("STEP 2") || text.toLowerCase().includes("day 2")) {
+          targetId = "day-section-1";
+        } else if (text.includes("DAY 3") || text.includes("STEP 3") || text.toLowerCase().includes("day 3")) {
+          targetId = "day-section-2";
+        } else if (text.includes("DAY 4") || text.toLowerCase().includes("day 4")) {
+          targetId = "day-section-3";
+        } else if (text.includes("꿀팁") || text.includes("체크리스트") || text.includes("Tips") || text.includes("큐레이션")) {
+          targetId = "tips-section";
+        } else {
+          targetId = `heading-${items.length}`;
+        }
+        
+        items.push({ text, id: targetId });
+      }
+    });
+
+    // Fallback if no markdown headers found (itinerary-driven)
+    if (items.length === 0 && post.itinerary && post.itinerary.length > 0) {
+      post.itinerary.forEach((dayItem, dIdx) => {
+        items.push({
+          text: `D${dayItem.day}. ${dayItem.title}`,
+          id: `day-section-${dIdx}`,
+        });
+      });
+      if (post.travelTips && post.travelTips.length > 0) {
+        items.push({
+          text: "에디터 추천 꿀팁 & 체크리스트",
+          id: "tips-section",
+        });
+      }
+    }
+
+    return items;
+  }, [post]);
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 sm:space-y-8 animate-fade-in pb-20 px-1 sm:px-0">
@@ -205,6 +254,35 @@ export const WebzineDetailView: React.FC<WebzineDetailViewProps> = ({
             </div>
           </div>
 
+          {/* 📋 자동 목차 (Table of Contents) */}
+          {tocItems.length > 0 && (
+            <div className="bg-stone-100/80 border border-stone-200 rounded-2xl p-4 sm:p-5 space-y-3 shadow-xs">
+              <div className="flex items-center space-x-2 text-stone-800 font-bold text-xs sm:text-sm">
+                <span className="text-orange-500">📋</span>
+                <span>실시간 마크다운 파싱 아티클 목차 (TOC)</span>
+              </div>
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs sm:text-sm text-stone-600 font-medium">
+                {tocItems.map((item, idx) => (
+                  <li key={idx} className="flex items-center space-x-1.5">
+                    <span className="text-orange-500 font-bold">·</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const target = document.getElementById(item.id);
+                        if (target) {
+                          target.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }
+                      }}
+                      className="hover:text-orange-600 hover:underline text-left transition-colors truncate font-semibold"
+                    >
+                      {item.text}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {/* Detailed Course Timelines */}
           <div className="space-y-6">
             <div className="flex items-center space-x-2.5 border-b border-stone-200 pb-3.5">
@@ -215,7 +293,7 @@ export const WebzineDetailView: React.FC<WebzineDetailViewProps> = ({
             </div>
 
             {(post.itinerary || []).map((dayItem, dIdx) => (
-              <div key={dIdx} className="space-y-4">
+              <div key={dIdx} id={`day-section-${dIdx}`} className="space-y-4 scroll-mt-24">
                 <div className="flex items-center space-x-3">
                   <span className="w-7 h-7 rounded-lg bg-orange-500 text-white font-extrabold text-xs flex items-center justify-center shadow-sm">
                     D{dayItem.day}
@@ -294,7 +372,7 @@ export const WebzineDetailView: React.FC<WebzineDetailViewProps> = ({
 
           {/* Travel Tips block */}
           {(post.travelTips || []).length > 0 && (
-            <div className="p-4 sm:p-6 bg-amber-50/50 border border-amber-200/60 rounded-2xl sm:rounded-3xl space-y-2.5 sm:space-y-3">
+            <div id="tips-section" className="p-4 sm:p-6 bg-amber-50/50 border border-amber-200/60 rounded-2xl sm:rounded-3xl space-y-2.5 sm:space-y-3 scroll-mt-24">
               <h4 className="font-extrabold text-amber-950 flex items-center gap-2 text-sm sm:text-base">
                 <Lightbulb className="w-5 h-5 text-amber-600" />
                 <span>에디터가 전하는 완벽 노출 체크리스트</span>

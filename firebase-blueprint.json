@@ -44,6 +44,21 @@
         "isCover": { "type": "boolean" }
       },
       "required": ["imageUrl", "destination"]
+    },
+    "scheduled_queue": {
+      "title": "Scheduled Queue",
+      "description": "Autopilot automated post scheduling queue",
+      "properties": {
+        "categoryType": { "type": "string" },
+        "topicKeywords": { "type": "array", "items": { "type": "string" } },
+        "scheduledAt": { "type": "string" },
+        "recurrence": { "type": "string" },
+        "persona": { "type": "string" },
+        "status": { "type": "string" },
+        "lastExecutedPostId": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["categoryType", "scheduledAt", "status"]
     }
   }
 }
