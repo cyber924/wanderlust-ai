@@ -16,6 +16,7 @@ import {
   Share2,
   Globe2,
   CheckCircle2,
+  RefreshCw,
 } from "lucide-react";
 import { BlogPost } from "../types";
 import { getSafeUnsplashCoverUrl } from "../utils/imageHelper";
@@ -31,6 +32,7 @@ interface PostListProps {
   onTogglePublish?: (postId: string) => void;
   onShowToast?: (msg: string) => void;
   onNavigateToSNSArchive?: () => void;
+  onRefreshDB?: () => Promise<void>;
 }
 
 export const PostList: React.FC<PostListProps> = ({
@@ -40,14 +42,16 @@ export const PostList: React.FC<PostListProps> = ({
   onDeletePost,
   onCreateNew,
   onTogglePublish,
-  onShowToast = () => {},
+  onShowToast = (_msg: string) => {},
   onNavigateToSNSArchive,
+  onRefreshDB,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
   const [postToDelete, setPostToDelete] = useState<BlogPost | null>(null);
   const [embedPost, setEmbedPost] = useState<BlogPost | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const filteredPosts = posts.filter(
     (p) =>
@@ -56,6 +60,21 @@ export const PostList: React.FC<PostListProps> = ({
       p.concept.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.hashtags.some((h) => h.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  const handleSync = async () => {
+    if (!onRefreshDB) return;
+    setIsSyncing(true);
+    onShowToast("🔄 실시간 최신 DB 조회 중... 잠시만 기다려 주세요.");
+    try {
+      await onRefreshDB();
+      onShowToast("✨ 최신 데이터베이스(Firestore)로부터 성공적으로 실시간 조회를 완료했습니다!");
+    } catch (err) {
+      console.error("DB Sync error:", err);
+      onShowToast("❌ 실시간 조회 중 오류가 발생했습니다. DB 권한 및 연결 상태를 확인해 주세요.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const handleCopyMarkdown = (post: BlogPost, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -108,13 +127,32 @@ export const PostList: React.FC<PostListProps> = ({
           )}
         </div>
 
-        <button
-          onClick={onCreateNew}
-          className="flex items-center space-x-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2.5 rounded-2xl text-sm font-bold shadow-md shadow-orange-500/10 transition-all hover:scale-[1.02]"
-        >
-          <Plus className="w-4 h-4" />
-          <span>새 블로그 생성하기</span>
-        </button>
+        <div className="flex items-center gap-3">
+          {/* 실시간 가져오기 버튼 */}
+          {onRefreshDB && (
+            <button
+              type="button"
+              onClick={handleSync}
+              disabled={isSyncing}
+              className={`flex items-center space-x-2 px-4 py-2.5 rounded-2xl text-sm font-bold border transition-all hover:scale-[1.02] ${
+                isSyncing
+                  ? "bg-stone-50 text-stone-400 border-stone-200 cursor-not-allowed"
+                  : "bg-stone-900 hover:bg-stone-800 text-white border-stone-900 shadow-sm"
+              }`}
+            >
+              <RefreshCw className={`w-4 h-4 ${isSyncing ? "animate-spin" : ""}`} />
+              <span>{isSyncing ? "최신 DB 조회 중..." : "실시간 가져오기"}</span>
+            </button>
+          )}
+
+          <button
+            onClick={onCreateNew}
+            className="flex items-center space-x-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2.5 rounded-2xl text-sm font-bold shadow-md shadow-orange-500/10 transition-all hover:scale-[1.02]"
+          >
+            <Plus className="w-4 h-4" />
+            <span>새 블로그 생성하기</span>
+          </button>
+        </div>
       </div>
 
       {/* Search Input */}

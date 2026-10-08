@@ -175,6 +175,48 @@ export default function App() {
     loadData();
   }, []);
 
+  // Automatically re-fetch data from Firestore whenever the user state changes (login/logout/identity load)
+  useEffect(() => {
+    async function reloadUserData() {
+      if (!user) return;
+      console.log(`[Auth Sync] User logged in: ${user.email}. Re-fetching fresh database records...`);
+      try {
+        const [posts, images] = await Promise.all([
+          fetchPostsFromFirestore(),
+          fetchImagesFromFirestore(),
+        ]);
+        if (posts && posts.length > 0) {
+          setSavedPosts(posts);
+        }
+        if (images && images.length > 0) {
+          setGalleryImages(images);
+        }
+      } catch (err) {
+        console.error("Failed to automatically fetch user data after auth state change:", err);
+      }
+    }
+    reloadUserData();
+  }, [user]);
+
+  // Manual trigger to pull the absolute latest data from Firestore
+  const handleRefreshDB = async () => {
+    try {
+      const [posts, images] = await Promise.all([
+        fetchPostsFromFirestore(),
+        fetchImagesFromFirestore(),
+      ]);
+      if (posts) {
+        setSavedPosts(posts);
+      }
+      if (images) {
+        setGalleryImages(images);
+      }
+    } catch (err) {
+      console.error("Manual database refresh failed:", err);
+      throw err;
+    }
+  };
+
   // Global Autopilot / Deferred Sync Engine (Checks current time vs scheduled task times)
   useEffect(() => {
     let active = true;
@@ -1033,6 +1075,7 @@ export default function App() {
                     onTogglePublish={handleTogglePublishPost}
                     onShowToast={showToast}
                     onNavigateToSNSArchive={() => setActiveTab("sns")}
+                    onRefreshDB={handleRefreshDB}
                   />
                 )
               )}
