@@ -50,6 +50,14 @@ export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 // Ensure authentication for rule compliance (works for anonymous or logged-in users)
 export async function ensureAuth(): Promise<User | null> {
   if (auth.currentUser) return auth.currentUser;
+  
+  // Wait for auth to resolve persistent Google session before executing anonymous fallback
+  if (typeof auth.authStateReady === "function") {
+    await auth.authStateReady();
+  }
+  
+  if (auth.currentUser) return auth.currentUser;
+
   try {
     const cred = await signInAnonymously(auth);
     return cred.user;
@@ -61,6 +69,10 @@ export async function ensureAuth(): Promise<User | null> {
 
 // Auto-authenticate in background on initial load
 if (typeof window !== "undefined") {
+  console.log("🔥 [Wanderlust AI] Initializing Firebase client...");
+  console.log("📍 Project ID:", firebaseConfig.projectId);
+  console.log("📍 Database ID:", firebaseConfig.firestoreDatabaseId);
+  console.log("📍 Auth Domain:", firebaseConfig.authDomain);
   ensureAuth();
 }
 
@@ -588,8 +600,7 @@ export async function fetchScheduledTasksFromFirestore(): Promise<ScheduledTask[
   const tasks: ScheduledTask[] = [];
   try {
     const queueRef = collection(db, "scheduled_queue");
-    const q = query(queueRef, orderBy("scheduledAt", "asc"));
-    const querySnapshot = await getDocs(q);
+    const querySnapshot = await getDocs(queueRef);
     querySnapshot.forEach((docSnap) => {
       const data = docSnap.data();
       tasks.push({
@@ -604,6 +615,8 @@ export async function fetchScheduledTasksFromFirestore(): Promise<ScheduledTask[
         createdAt: data.createdAt || new Date().toISOString(),
       });
     });
+    // Client-side JavaScript sorting to bypass any Firestore index requirements!
+    tasks.sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
   } catch (err) {
     console.warn("Notice reading 'scheduled_queue' collection:", err);
   }
