@@ -1,38 +1,38 @@
 {
   "version": 2,
   "functions": {
-    "api/index.ts": {
+    "api/index.js": {
       "maxDuration": 60
     }
   },
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api"
+      "destination": "/api/index.js"
     },
     {
       "source": "/sitemap.xml",
-      "destination": "/api"
+      "destination": "/api/index.js"
     },
     {
       "source": "/robots.txt",
-      "destination": "/api"
+      "destination": "/api/index.js"
     },
     {
       "source": "/blog",
-      "destination": "/api"
+      "destination": "/api/index.js"
     },
     {
       "source": "/blog/:id",
-      "destination": "/api"
+      "destination": "/api/index.js"
     },
     {
       "source": "/",
-      "destination": "/api"
+      "destination": "/api/index.js"
     },
     {
       "source": "/((?!api/|assets/|favicon\\.ico).*)",
-      "destination": "/api"
+      "destination": "/api/index.js"
     }
   ]
 }
