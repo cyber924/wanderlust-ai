@@ -1,121 +1,81 @@
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore, doc, getDoc, collection, getDocs, query, orderBy } from "firebase/firestore";
-import fs from "fs";
-import path from "path";
-import { WEBZINE_SAMPLE_ARTICLES } from "../data/webzineSampleArticles.js";
+import config from "../../firebase-applet-config.json";
+import type { BlogPost } from "../types.js";
 
-// Load config
-const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
-const firebaseConfigJson = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+// Public reads use Firestore REST, including the project's named database.
+// No browser login or service-account file is required.
+const projectId = process.env.VITE_FIREBASE_PROJECT_ID || config.projectId;
+const databaseId = process.env.VITE_FIREBASE_DATABASE_ID || config.firestoreDatabaseId || "(default)";
+const apiKey = process.env.VITE_FIREBASE_API_KEY || config.apiKey;
+export type { BlogPost };
 
-const firebaseConfig = {
-  apiKey: process.env.VITE_FIREBASE_API_KEY || firebaseConfigJson.apiKey,
-  authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN || firebaseConfigJson.authDomain,
-  projectId: process.env.VITE_FIREBASE_PROJECT_ID || firebaseConfigJson.projectId,
-  storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || firebaseConfigJson.storageBucket,
-  messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || firebaseConfigJson.messagingSenderId,
-  appId: process.env.VITE_FIREBASE_APP_ID || firebaseConfigJson.appId,
-  firestoreDatabaseId: process.env.VITE_FIREBASE_DATABASE_ID || firebaseConfigJson.firestoreDatabaseId || "(default)",
-};
-
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
-
-export interface BlogPost {
-  id: string;
-  title: string;
-  subtitle?: string;
-  markdownContent?: string;
-  seoDescription?: string;
-  coverImageUrl?: string;
-  createdAt: string;
-  updatedAt: string;
-  authorName?: string;
-  status?: string;
-  isPublic?: boolean;
+export function isoDate(value: any): string | undefined {
+  if (!value) return undefined;
+  const raw = value?.toDate ? value.toDate() : typeof value === "object" && (value.seconds != null || value._seconds != null)
+    ? Number(value.seconds ?? value._seconds) * 1000 : value;
+  const date = new Date(raw);
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
 }
 
-/**
- * Fetch a single blog post by its ID from Firestore or static samples.
- */
-export async function getBlogPostById(id: string): Promise<BlogPost | null> {
-  try {
-    const docRef = doc(db, "travel_blog_posts", id);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      const data = docSnap.data();
-      const status = data.status || "published";
-      const isPublic = data.isPublic !== undefined ? Boolean(data.isPublic) : (status === "published");
-      return {
-        id: docSnap.id,
-        title: data.title || "",
-        subtitle: data.subtitle || "",
-        markdownContent: data.markdownContent || "",
-        seoDescription: data.seoDescription || "",
-        coverImageUrl: data.coverImageUrl || "",
-        createdAt: data.createdAt || new Date().toISOString(),
-        updatedAt: data.updatedAt || new Date().toISOString(),
-        authorName: data.authorName || "Wanderlust 에디터",
-        status,
-        isPublic,
-      } as BlogPost;
-    }
-  } catch (error) {
-    console.error(`Error fetching blog ${id} from travel_blog_posts on server:`, error);
-  }
+export function isPublished(data: any, now = Date.now()): boolean {
+  if ((data.status || "published") !== "published" || data.isPublic === false) return false;
+  const publishAt = isoDate(data.publishAt || data.scheduledAt || data.createdAt);
+  return !publishAt || Date.parse(publishAt) <= now;
+}
 
-  // Fallback to sample articles
-  const sample = WEBZINE_SAMPLE_ARTICLES.find((a) => a.id === id);
-  if (sample) {
-    return sample as BlogPost;
-  }
-
+function decode(value: any): any {
+  if ("nullValue" in value) return null;
+  if ("arrayValue" in value) return (value.arrayValue.values || []).map(decode);
+  if ("mapValue" in value) return Object.fromEntries(Object.entries(value.mapValue.fields || {}).map(([k,v]) => [k, decode(v)]));
+  for (const key of ["stringValue", "booleanValue", "timestampValue", "doubleValue"]) if (key in value) return value[key];
+  if ("integerValue" in value) return Number(value.integerValue);
   return null;
 }
 
-/**
- * Fetch all public, published, and non-future blog posts for the Sitemap.
- */
-export async function getAllPublicBlogPosts(): Promise<BlogPost[]> {
-  const postsMap = new Map<string, BlogPost>();
+function mapPost(document: any): BlogPost {
+  const data: any = Object.fromEntries(Object.entries(document.fields || {}).map(([k,v]) => [k, decode(v)]));
+  return {
+    ...data, id: document.name.split("/").pop(), title: data.title || "",
+    markdownContent: data.markdownContent || "", status: data.status || "published",
+    isPublic: data.isPublic !== false,
+    createdAt: isoDate(data.createdAt) || document.createTime,
+    updatedAt: isoDate(data.updatedAt) || document.updateTime || document.createTime,
+  } as BlogPost;
+}
 
-  try {
-    const travelRef = collection(db, "travel_blog_posts");
-    const querySnapshot = await getDocs(travelRef);
-    const now = new Date();
-
-    querySnapshot.forEach((docSnap) => {
-      const data = docSnap.data();
-      const status = data.status || "published";
-      const isPublic = data.isPublic !== undefined ? Boolean(data.isPublic) : (status === "published");
-      
-      const createdAt = data.createdAt || "";
-      const createdDate = new Date(createdAt);
-
-      // Enforce: actual post, public, published, and not scheduled in the future
-      if (status === "published" && isPublic && createdDate <= now) {
-        postsMap.set(docSnap.id, {
-          id: docSnap.id,
-          title: data.title || "",
-          subtitle: data.subtitle || "",
-          markdownContent: data.markdownContent || "",
-          seoDescription: data.seoDescription || "",
-          coverImageUrl: data.coverImageUrl || "",
-          createdAt: data.createdAt || new Date().toISOString(),
-          updatedAt: data.updatedAt || new Date().toISOString(),
-          authorName: data.authorName || "Wanderlust 에디터",
-          status,
-          isPublic,
-        });
-      }
+async function queryPublic(field: string, id?: string): Promise<BlogPost[]> {
+  const result: BlogPost[] = [];
+  let cursor: string | undefined;
+  do {
+    const filters: any[] = [{ fieldFilter: { field: { fieldPath: field }, op: "EQUAL", value: field === "isPublic" ? { booleanValue: true } : { stringValue: "published" } } }];
+    if (id) filters.push({ fieldFilter: { field: { fieldPath: "__name__" }, op: "EQUAL", value: { referenceValue: `projects/${projectId}/databases/${databaseId}/documents/travel_blog_posts/${id}` } } });
+    const structuredQuery: any = {
+      from: [{ collectionId: "travel_blog_posts" }],
+      where: filters.length === 1 ? filters[0] : { compositeFilter: { op: "AND", filters } },
+      orderBy: [{ field: { fieldPath: "__name__" }, direction: "ASCENDING" }], limit: 100,
+    };
+    if (cursor) structuredQuery.startAt = { values: [{ referenceValue: cursor }], before: false };
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents:runQuery?key=${apiKey}`;
+    const response = await fetch(url, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ structuredQuery }), signal: AbortSignal.timeout(12000),
     });
-  } catch (error) {
-    console.error("Error fetching all public blogs for sitemap:", error);
-  }
+    if (!response.ok) throw new Error(`Public Firestore query failed (${response.status}): ${(await response.text()).slice(0, 400)}`);
+    const rows: any[] = await response.json();
+    const documents = rows.flatMap(row => row.document ? [row.document] : []);
+    result.push(...documents.map(mapPost).filter(post => isPublished(post)));
+    cursor = documents.length === 100 && !id ? documents.at(-1).name : undefined;
+  } while (cursor);
+  return result;
+}
 
-  // JavaScript-side sorting for zero-index query reliability
-  const sortedPosts = Array.from(postsMap.values());
-  sortedPosts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+export async function getBlogPostById(id: string): Promise<BlogPost | null> {
+  const [visible, published] = await Promise.all([queryPublic("isPublic", id), queryPublic("status", id)]);
+  return visible[0] || published[0] || null;
+}
 
-  return sortedPosts;
+export async function getAllPublicBlogPosts(): Promise<BlogPost[]> {
+  // Security rules require a public predicate; unfiltered collection reads are denied.
+  const groups = await Promise.all([queryPublic("isPublic"), queryPublic("status")]);
+  const posts = [...new Map(groups.flat().map(post => [post.id, post])).values()];
+  return posts.sort((a,b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
 }

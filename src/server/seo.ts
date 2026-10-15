@@ -1,283 +1,74 @@
-import fs from "fs";
-import path from "path";
-import { getBlogPostById, getAllPublicBlogPosts } from "./db.js";
+import fs from "node:fs";
+import path from "node:path";
+import { getBlogPostById, getAllPublicBlogPosts, isoDate } from "./db.js";
 
-function getBaseUrl(req: any): string {
-  const protocol = req.headers["x-forwarded-proto"] || req.protocol || "http";
-  const host = req.get("host") || "localhost:3000";
-  return `${protocol}://${host}`;
+const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80";
+export const escapeHtml = (value: any = "") => String(value).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[c]!);
+export const scriptJson = (value: any) => JSON.stringify(value).replace(/</g, "\\u003c").replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
+function baseUrl(req: any) {
+  return (process.env.SITE_URL || `https://${req.get("host") || "wanderlust-ai-88vl.vercel.app"}`).replace(/\/$/, "");
+}
+async function template(req: any, vite?: any) {
+  const file = vite ? "index.html" : "dist/index.html";
+  let html = fs.readFileSync(path.resolve(process.cwd(), file), "utf8");
+  if (vite) html = await vite.transformIndexHtml(req.originalUrl, html);
+  return html.replace('lang="en"', 'lang="ko"');
+}
+function decorate(html: string, data: { title: string; description: string; url?: string; image?: string; article?: boolean; noindex?: boolean }, body: string, initial = "") {
+  // Replace existing metadata rather than appending conflicting defaults.
+  html = html.replace(/<title>[\s\S]*?<\/title>/gi, "")
+    .replace(/<meta\b[^>]*(?:name|property)=["'](?:description|robots|og:[^"']+|twitter:[^"']+)["'][^>]*>/gi, "")
+    .replace(/<link\b[^>]*rel=["']canonical["'][^>]*>/gi, "");
+  const e = escapeHtml;
+  const head = `<title>${e(data.title)}</title>
+<meta name="description" content="${e(data.description)}">
+<meta name="robots" content="${data.noindex ? "noindex,follow" : "index,follow"}">
+${data.url ? `<link rel="canonical" href="${e(data.url)}"><meta property="og:url" content="${e(data.url)}">` : ""}
+<meta property="og:type" content="${data.article ? "article" : "website"}">
+<meta property="og:title" content="${e(data.title)}"><meta property="og:description" content="${e(data.description)}">
+<meta property="og:image" content="${e(data.image || FALLBACK_IMAGE)}">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${e(data.title)}">
+<meta name="twitter:description" content="${e(data.description)}"><meta name="twitter:image" content="${e(data.image || FALLBACK_IMAGE)}">
+${initial}`;
+  return html.replace("</head>", `${head}</head>`).replace('<div id="root"></div>', `<div id="root"><main style="max-width:1000px;margin:40px auto;padding:20px;font-family:sans-serif;line-height:1.8">${body}</main></div>`);
+}
+function respond(res: any, html: string, status = 200) {
+  return res.status(status).set("Cache-Control", "no-store").type("html").send(html);
 }
 
-function cleanText(markdown: string | undefined, limit: number = 140): string {
-  if (!markdown) return "";
-  const plainText = markdown
-    .replace(/[#*`_~\[\]()\-+=>!]/g, " ")
-    .replace(/<[^>]*>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  
-  if (plainText.length <= limit) return plainText;
-  return plainText.slice(0, limit) + "...";
-}
-
-/**
- * Handle sitemap.xml dynamic generation
- */
 export async function handleSitemap(req: any, res: any) {
   try {
     const posts = await getAllPublicBlogPosts();
-    const baseUrl = getBaseUrl(req);
-
-    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-    xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
-
-    // 1. Homepage
-    xml += `  <url>\n`;
-    xml += `    <loc>${baseUrl}/</loc>\n`;
-    xml += `    <changefreq>daily</changefreq>\n`;
-    xml += `    <priority>1.0</priority>\n`;
-    xml += `  </url>\n`;
-
-    // 2. Blog archive
-    xml += `  <url>\n`;
-    xml += `    <loc>${baseUrl}/blog</loc>\n`;
-    xml += `    <changefreq>daily</changefreq>\n`;
-    xml += `    <priority>0.9</priority>\n`;
-    xml += `  </url>\n`;
-
-    // 3. Blog Posts
-    for (const post of posts) {
-      const rawDate = post.updatedAt || post.createdAt;
-      const lastmod = new Date(rawDate).toISOString();
-
-      xml += `  <url>\n`;
-      xml += `    <loc>${baseUrl}/blog/${post.id}</loc>\n`;
-      xml += `    <lastmod>${lastmod}</lastmod>\n`;
-      xml += `    <changefreq>weekly</changefreq>\n`;
-      xml += `    <priority>0.8</priority>\n`;
-      xml += `  </url>\n`;
-    }
-
-    xml += `</urlset>`;
-
-    res.header("Content-Type", "application/xml; charset=utf-8");
-    res.status(200).send(xml);
+    const base = baseUrl(req);
+    const urls = [{ url: `${base}/` }, { url: `${base}/blog` }, ...posts.map(post => ({ url: `${base}/blog/${encodeURIComponent(post.id)}`, date: isoDate(post.updatedAt || post.createdAt) }))];
+    const xml = `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.map((item: any) => `<url><loc>${escapeHtml(item.url)}</loc>${item.date ? `<lastmod>${item.date}</lastmod>` : ""}</url>`).join("")}</urlset>`;
+    res.set("Cache-Control", "no-store").type("application/xml").status(200).send(xml);
   } catch (error) {
-    console.error("Error generating sitemap.xml:", error);
-    res.status(500).send("Error generating sitemap");
+    console.error("Sitemap read failed:", error);
+    res.set("Cache-Control", "no-store").status(503).type("text").send("Sitemap temporarily unavailable");
   }
 }
-
-/**
- * Handle robots.txt dynamic generation
- */
 export function handleRobots(req: any, res: any) {
-  const baseUrl = getBaseUrl(req);
-  const robots = `User-agent: *
-Allow: /
-
-Sitemap: ${baseUrl}/sitemap.xml
-`;
-  res.header("Content-Type", "text/plain; charset=utf-8");
-  res.status(200).send(robots);
+  res.type("text").status(200).send(`User-agent: *\nAllow: /\n\nSitemap: ${baseUrl(req)}/sitemap.xml\n`);
 }
-
-/**
- * Handle Blog Detail page HTML server-side rendering & injection
- */
 export async function handleBlogDetailPage(req: any, res: any, vite?: any) {
-  const postId = req.params.id;
-  const baseUrl = getBaseUrl(req);
-  
-  let html = "";
-  try {
-    if (process.env.NODE_ENV !== "production" && vite) {
-      const templatePath = path.resolve(process.cwd(), "index.html");
-      html = fs.readFileSync(templatePath, "utf-8");
-      html = await vite.transformIndexHtml(req.originalUrl, html);
-    } else {
-      const templatePath = path.resolve(process.cwd(), "dist", "index.html");
-      html = fs.readFileSync(templatePath, "utf-8");
-    }
-  } catch (err) {
-    console.error("Error reading index.html in server-side SEO:", err);
-    return res.status(500).send("Internal Server Error");
-  }
-
-  const post = await getBlogPostById(postId);
-  const now = new Date();
-  
-  const isValid = post && 
-    post.status === "published" && 
-    (post.isPublic !== false) && 
-    new Date(post.createdAt) <= now;
-
-  if (!isValid) {
-    res.status(404);
-    let modifiedHtml = html;
-    modifiedHtml = modifiedHtml.replace(
-      "<title>Wanderlust AI - 여행 블로그 자동화</title>",
-      "<title>글을 찾을 수 없습니다 | Wanderlust AI</title>"
-    );
-    modifiedHtml = modifiedHtml.replace(
-      "</head>",
-      `  <meta name="robots" content="noindex, follow">\n  </head>`
-    );
-    modifiedHtml = modifiedHtml.replace(
-      '<div id="root"></div>',
-      '<div id="root"><div style="padding:80px 20px;text-align:center;font-family:sans-serif;"><h1 style="font-size:2rem;color:#1c1917;margin-bottom:12px;">404 - 글을 찾을 수 없습니다</h1><p style="color:#57534e;margin-bottom:24px;">요청하신 발행 글이 존재하지 않거나 비공개 상태입니다.</p><a href="/blog" style="background:#2563eb;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;">공개 웹진 목록으로 돌아가기</a></div></div>'
-    );
-    return res.send(modifiedHtml);
-  }
-
-  res.status(200);
-
-  const postTitle = post.title;
-  const postDesc = post.seoDescription || cleanText(post.markdownContent || "", 140);
-  const postImage = post.coverImageUrl || "https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80";
-  const postUrl = `${baseUrl}/blog/${post.id}`;
-  const datePublished = new Date(post.createdAt).toISOString();
-  const dateModified = new Date(post.updatedAt || post.createdAt).toISOString();
-
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "BlogPosting",
-    "headline": postTitle,
-    "description": postDesc,
-    "image": postImage,
-    "datePublished": datePublished,
-    "dateModified": dateModified,
-    "mainEntityOfPage": {
-      "@type": "WebPage",
-      "@id": postUrl
-    },
-    "author": {
-      "@type": "Organization",
-      "name": post.authorName || "Wanderlust AI"
-    },
-    "publisher": {
-      "@type": "Organization",
-      "name": "Wanderlust AI",
-      "url": baseUrl
-    }
-  };
-
-  let modifiedHtml = html;
-
-  modifiedHtml = modifiedHtml.replace(
-    "<title>Wanderlust AI - 여행 블로그 자동화</title>",
-    `<title>${postTitle} | Wanderlust AI</title>`
-  );
-
-  const additionalHeads = `
-    <link rel="canonical" href="${postUrl}" />
-    <meta property="og:type" content="article" />
-    <meta property="og:title" content="${postTitle.replace(/"/g, '&quot;')}" />
-    <meta property="og:description" content="${postDesc.replace(/"/g, '&quot;')}" />
-    <meta property="og:image" content="${postImage}" />
-    <meta property="og:url" content="${postUrl}" />
-    <meta property="article:published_time" content="${datePublished}" />
-    <meta property="article:modified_time" content="${dateModified}" />
-    <script type="application/ld+json">
-${JSON.stringify(jsonLd, null, 2)}
-    </script>
-    <script>
-      window.__INITIAL_POST__ = ${JSON.stringify(post)};
-    </script>
-  `;
-
-  modifiedHtml = modifiedHtml.replace("</head>", `${additionalHeads}\n  </head>`);
-
-  const ssrContent = `
-    <div style="max-width:800px;margin:40px auto;padding:20px;font-family:sans-serif;color:#1c1917;">
-      <nav style="margin-bottom:20px;"><a href="/blog" style="color:#2563eb;text-decoration:none;font-weight:600;">← 웹진 목록으로 돌아가기</a></nav>
-      <article>
-        <h1 style="font-size:2.25rem;font-weight:bold;margin-bottom:12px;line-height:1.3;">${postTitle}</h1>
-        <p style="font-size:1.125rem;color:#57534e;margin-bottom:20px;">${post.subtitle || ''}</p>
-        <div style="display:flex;gap:16px;color:#78716c;font-size:0.875rem;margin-bottom:24px;border-bottom:1px solid #e7e5e4;padding-bottom:16px;">
-          <span>✍️ ${post.authorName || 'Wanderlust 에디터'}</span>
-          <span>📅 ${new Date(post.createdAt).toLocaleDateString()}</span>
-        </div>
-        ${postImage ? `<img src="${postImage}" alt="${postTitle}" style="width:100%;height:400px;object-fit:cover;border-radius:12px;margin-bottom:24px;" />` : ''}
-        <div style="line-height:1.8;color:#292524;white-space:pre-wrap;">${post.markdownContent || ''}</div>
-      </article>
-    </div>
-  `;
-
-  modifiedHtml = modifiedHtml.replace('<div id="root"></div>', `<div id="root">${ssrContent}</div>`);
-
-  return res.send(modifiedHtml);
+  const post = await getBlogPostById(req.params.id);
+  if (!post) return handleNotFound(req, res);
+  const url = `${baseUrl(req)}/blog/${encodeURIComponent(post.id)}`;
+  const title = `${post.title} | Wanderlust AI`;
+  const description = post.seoDescription || post.subtitle || post.markdownContent.replace(/[#*`]/g, "").slice(0, 140);
+  const image = post.coverImageUrl || FALLBACK_IMAGE;
+  const jsonLd = { "@context": "https://schema.org", "@type": "BlogPosting", headline: post.title, description, image, datePublished: isoDate(post.createdAt), dateModified: isoDate(post.updatedAt || post.createdAt), mainEntityOfPage: { "@type": "WebPage", "@id": url }, author: { "@type": "Organization", name: post.authorName || "Wanderlust AI" } };
+  const initial = `<script type="application/ld+json">${scriptJson(jsonLd)}</script><script>window.__INITIAL_POST__=${scriptJson(post)};window.__INITIAL_POSTS__=${scriptJson([post])};</script>`;
+  const body = `<nav><a href="/blog">← 공개 웹진 목록</a></nav><article><h1>${escapeHtml(post.title)}</h1><p>${escapeHtml(post.subtitle || "")}</p><img src="${escapeHtml(image)}" alt="${escapeHtml(post.title)}" style="max-width:100%;height:auto"><div style="white-space:pre-wrap">${escapeHtml(post.markdownContent)}</div></article>`;
+  return respond(res, decorate(await template(req, vite), {title, description, url, image, article: true}, body, initial));
 }
-
-/**
- * Handle static URL canonical mappings (e.g. / or /blog)
- */
 export async function handleStaticPage(req: any, res: any, vite?: any) {
-  const baseUrl = getBaseUrl(req);
-  const pathStr = req.path;
-  const canonicalUrl = `${baseUrl}${pathStr}`;
-
-  let html = "";
-  try {
-    if (process.env.NODE_ENV !== "production" && vite) {
-      const templatePath = path.resolve(process.cwd(), "index.html");
-      html = fs.readFileSync(templatePath, "utf-8");
-      html = await vite.transformIndexHtml(req.originalUrl, html);
-    } else {
-      const templatePath = path.resolve(process.cwd(), "dist", "index.html");
-      html = fs.readFileSync(templatePath, "utf-8");
-    }
-  } catch (err) {
-    console.error(`Error reading index.html for static path ${pathStr}:`, err);
-    return res.status(500).send("Internal Server Error");
-  }
-
-  let posts: any[] = [];
-  try {
-    posts = await getAllPublicBlogPosts();
-  } catch (err) {
-    console.error("Error fetching posts for static SSR page:", err);
-  }
-
-  let modifiedHtml = html;
-  modifiedHtml = modifiedHtml.replace(
-    "</head>",
-    `    <link rel="canonical" href="${canonicalUrl}" />\n    <meta property="og:url" content="${canonicalUrl}" />\n  </head>`
-  );
-
-  if (posts.length > 0) {
-    const postsHtml = `
-      <div style="max-width:1200px;margin:0 auto;padding:40px 20px;font-family:sans-serif;">
-        <header style="text-align:center;margin-bottom:40px;">
-          <h1 style="font-size:2.5rem;font-weight:bold;color:#1c1917;margin-bottom:12px;">Wanderlust AI 공개 웹진</h1>
-          <p style="font-size:1.125rem;color:#57534e;">AI가 실시간으로 분석하고 발행한 생생한 여행 및 생활정보 가이드</p>
-        </header>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:24px;">
-          ${posts.map(p => `
-            <div style="background:#fff;border:1px solid #e7e5e4;border-radius:16px;overflow:hidden;box-shadow:0 4px 6px -1px rgb(0 0 0 / 0.1);">
-              ${p.coverImageUrl ? `<img src="${p.coverImageUrl}" alt="${p.title}" style="width:100%;height:200px;object-fit:cover;" />` : ''}
-              <div style="padding:20px;">
-                <h2 style="font-size:1.25rem;font-weight:bold;margin-bottom:8px;line-height:1.4;">
-                  <a href="/blog/${p.id}" style="color:#1c1917;text-decoration:none;">${p.title}</a>
-                </h2>
-                <p style="font-size:0.95rem;color:#57534e;margin-bottom:16px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${p.seoDescription || p.subtitle || ''}</p>
-                <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.85rem;color:#78716c;border-top:1px solid #f5f5f4;padding-top:12px;">
-                  <span>✍️ ${p.authorName || 'Wanderlust 에디터'}</span>
-                  <a href="/blog/${p.id}" style="color:#2563eb;font-weight:600;text-decoration:none;">자세히 보기 →</a>
-                </div>
-              </div>
-            </div>
-          `).join('')}
-        </div>
-      </div>
-    `;
-
-    modifiedHtml = modifiedHtml.replace('<div id="root"></div>', `<div id="root">${postsHtml}</div>`);
-    modifiedHtml = modifiedHtml.replace(
-      '</head>',
-      `  <script>window.__INITIAL_POSTS__ = ${JSON.stringify(posts)};</script>\n  </head>`
-    );
-  }
-
-  res.status(200).send(modifiedHtml);
+  const posts = await getAllPublicBlogPosts();
+  const title = req.path === "/blog" ? "여행·생활정보 공개 웹진 | Wanderlust AI" : "Wanderlust AI - 여행 블로그 자동화";
+  const body = `<h1>Wanderlust AI 공개 웹진</h1><p>여행과 생활정보를 만나보세요.</p>${posts.length ? posts.map(post => `<article><h2><a href="/blog/${encodeURIComponent(post.id)}">${escapeHtml(post.title)}</a></h2><p>${escapeHtml(post.seoDescription || post.subtitle || "")}</p></article>`).join("") : "<p>아직 공개된 글이 없습니다.</p>"}`;
+  return respond(res, decorate(await template(req, vite), { title, description: "여행과 맛집, 유용한 생활정보를 만나는 Wanderlust AI 공개 웹진", url: `${baseUrl(req)}${req.path}` }, body, `<script>window.__INITIAL_POSTS__=${scriptJson(posts)};</script>`));
+}
+export function handleNotFound(_req: any, res: any) {
+  return respond(res, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>페이지를 찾을 수 없습니다 | Wanderlust AI</title><meta name="robots" content="noindex,follow"></head><body><h1>404 - 페이지를 찾을 수 없습니다</h1><a href="/blog">공개 웹진으로 이동</a></body></html>`, 404);
 }

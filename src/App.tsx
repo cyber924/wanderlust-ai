@@ -46,7 +46,7 @@ import { Compass, Sparkles, FolderHeart, CheckCircle2 } from "lucide-react";
 export default function App() {
   const [activeTab, setActiveTab] = useState<
     "generator" | "image-generator" | "templates" | "posts" | "webzine" | "auth" | "sns" | "admin" | "pre-search" | "scheduling"
-  >("pre-search");
+  >(() => window.location.pathname === "/" || window.location.pathname === "/blog" || window.location.pathname.startsWith("/blog/") || window.location.pathname === "/webzine" ? "webzine" : "pre-search");
   const [categoryType, setCategoryType] = useState<
     "travel" | "life_info" | "food" | "trend"
   >("travel");

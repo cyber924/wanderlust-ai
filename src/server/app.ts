@@ -2,7 +2,7 @@ import express from "express";
 import path from "path";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
-import { handleSitemap, handleRobots, handleBlogDetailPage, handleStaticPage } from "./seo.js";
+import { handleSitemap, handleRobots, handleBlogDetailPage, handleStaticPage, handleNotFound } from "./seo.js";
 
 dotenv.config();
 
@@ -12,19 +12,26 @@ app.use(express.json({ limit: "10mb" }));
 
 // 1. Static files
 const distPath = path.join(process.cwd(), "dist");
-app.use(express.static(distPath));
+// Never let dist/index.html bypass public-page rendering.
+app.use(express.static(distPath, { index: false }));
+app.use((req, res, next) => {
+  if (req.path !== "/" && req.path.endsWith("/")) {
+    return res.redirect(308, req.path.replace(/\/+$/, "") + req.url.slice(req.path.length));
+  }
+  next();
+});
 
 // 2. SEO & SSR routes
 app.get("/sitemap.xml", handleSitemap);
 app.get("/robots.txt", handleRobots);
-app.get("/blog/:id", (req, res) => handleBlogDetailPage(req, res));
+app.get("/blog/:id", (req, res, next) => handleBlogDetailPage(req, res).catch(next));
 app.get("/", (req, res, next) => {
   if (req.path === "/") {
-    return handleStaticPage(req, res);
+    return handleStaticPage(req, res).catch(next);
   }
   next();
 });
-app.get("/blog", (req, res) => handleStaticPage(req, res));
+app.get("/blog", (req, res, next) => handleStaticPage(req, res).catch(next));
 
 // Initialize Gemini AI Client dynamically
 const getGenAI = () => {
@@ -1154,8 +1161,12 @@ app.get("/api/google-news", async (req, res) => {
 });
 
 // Fallback catch-all for SPA client-side routing
-app.get("*", (_req, res) => {
-  res.sendFile(path.join(distPath, "index.html"));
+app.get("/webzine", (_req, res) => res.redirect(308, "/blog"));
+app.get("/index.html", (_req, res) => res.redirect(308, "/"));
+app.use(handleNotFound);
+app.use((error: any, _req: any, res: any, _next: any) => {
+  console.error("Server request failed:", error);
+  res.set("Cache-Control", "no-store").status(503).send("일시적으로 콘텐츠를 불러올 수 없습니다. 잠시 후 다시 시도해 주세요.");
 });
 
 export default app;
