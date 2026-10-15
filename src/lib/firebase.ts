@@ -32,6 +32,7 @@ import {
 import { BlogPost, GeneratedImage, UserProfile, ScheduledTask } from "../types";
 import { SAMPLE_WEBZINE_ARTICLES } from "../data/webzineSampleArticles";
 import firebaseConfigJson from "../../firebase-applet-config.json";
+import { toFirestoreData } from "../utils/firestoreData";
 
 const clientEnv: Partial<ImportMetaEnv> = import.meta.env || {};
 
@@ -243,11 +244,11 @@ export async function savePostToFirestore(post: Omit<BlogPost, "id"> & { id?: st
     const blogDocRef = doc(db, "blogs", targetId);
     await setDoc(
       blogDocRef,
-      {
+      toFirestoreData({
         ...fullPost,
         updatedAtServer: Timestamp.now(),
         createdAtServer: Timestamp.now(),
-      },
+      }),
       { merge: true }
     );
 
@@ -382,17 +383,17 @@ export async function publishPostAtomic(post: BlogPost): Promise<void> {
 
   // 1. Update blogs raw document
   const blogRef = doc(db, "blogs", targetId);
-  batch.set(blogRef, {
+  batch.set(blogRef, toFirestoreData({
     ...updatedPost,
     updatedAtServer: Timestamp.now(),
-  }, { merge: true });
+  }), { merge: true });
 
   // 2. Set travel_blog_posts published copy document
   const travelRef = doc(db, "travel_blog_posts", targetId);
-  batch.set(travelRef, {
+  batch.set(travelRef, toFirestoreData({
     ...updatedPost,
     updatedAtServer: Timestamp.now(),
-  }, { merge: true });
+  }), { merge: true });
 
   await batch.commit();
   

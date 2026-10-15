@@ -619,10 +619,12 @@ export default function App({ initialData }: { initialData?: InitialPageData } =
       if (nextPublished) {
         // Atomic batch set to both 'blogs' and 'travel_blog_posts'
         await publishPostAtomic(updatedPost);
+        setPublishedPosts((prev) => [updatedPost, ...prev.filter((post) => post.id !== postId)]);
         showToast("🎉 웹진에 공개 발행되었습니다! [웹진] 탭 최상단에서 확인 가능합니다.");
       } else {
         // Atomic batch delete from 'travel_blog_posts' and update in 'blogs'
         await unpublishPostAtomic(postId);
+        setPublishedPosts((prev) => prev.filter((post) => post.id !== postId));
         showToast("🔒 웹진 발행이 취소되어 나만의 보관함 전용으로 전환되었습니다.");
       }
     } catch (err) {
@@ -632,7 +634,15 @@ export default function App({ initialData }: { initialData?: InitialPageData } =
       if (currentPost && currentPost.id === postId) {
         setCurrentPost(target);
       }
-      showToast("❌ 발행 상태를 변경하는 도중 오류가 발생했습니다. 권한 및 네트워크를 확인해 주세요.");
+      const error = err as { code?: string; message?: string };
+      const reason = error.code === "permission-denied"
+        ? "현재 계정에 발행 권한이 없습니다. 로그인 상태를 확인해 주세요."
+        : error.code === "invalid-argument"
+          ? "글 데이터 형식을 확인해 주세요."
+          : error.code === "unavailable"
+            ? "서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요."
+            : "발행을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+      showToast(`❌ ${reason}${error.code ? ` (${error.code})` : ""}`);
     }
   };
 
