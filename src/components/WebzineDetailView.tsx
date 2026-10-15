@@ -152,6 +152,7 @@ export const WebzineDetailView: React.FC<WebzineDetailViewProps> = ({
                 <span className="font-semibold text-stone-400">발행 일자</span>
                 <span className="font-bold text-stone-800">
                   {new Date(post.createdAt).toLocaleDateString("ko-KR", {
+                    timeZone: "Asia/Seoul",
                     year: "numeric",
                     month: "long",
                     day: "numeric",
@@ -281,6 +282,12 @@ export const WebzineDetailView: React.FC<WebzineDetailViewProps> = ({
                 ))}
               </ul>
             </div>
+          )}
+
+          {!post.itinerary?.length && post.markdownContent && (
+            <section className="bg-white border border-stone-200 rounded-2xl p-5 sm:p-8 text-stone-700 leading-relaxed whitespace-pre-wrap">
+              {post.markdownContent}
+            </section>
           )}
 
           {/* Detailed Course Timelines */}

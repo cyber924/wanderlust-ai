@@ -8,7 +8,10 @@ await mkdir(fn, { recursive: true });
 await build({
   entryPoints: ["src/server/app.ts"], outfile: `${fn}/index.cjs`,
   bundle: true, platform: "node", format: "cjs", target: "node22",
-  define: { "process.env.NODE_ENV": '"production"' },
+  define: {
+    "process.env.NODE_ENV": '"production"',
+    "import.meta.env": JSON.stringify(Object.fromEntries(Object.entries(process.env).filter(([key]) => key.startsWith("VITE_")))),
+  },
   footer: { js: "module.exports = module.exports.default;" },
 });
 await mkdir(`${fn}/dist`, { recursive: true });

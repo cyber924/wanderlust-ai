@@ -40,6 +40,10 @@ try {
   for (const route of ['/', '/blog', '/blog/live']) {
    const response=await fetch(`${base}${route}`);const html=await response.text();assert.equal(response.status,200);assert.match(html,/rel="canonical"/);assert.match(html,/Seoul &lt;travel&gt; &amp; food/);assert.doesNotMatch(html,/<script>bad\(\)<\/script>/);
    assert.equal((html.match(/property="og:title"/g)||[]).length,1);
+   assert.match(html, /<header class="sticky/); // The actual site, not a plain SEO placeholder.
+   assert.match(html, /<footer/);
+   assert.match(html, /window\.__INITIAL_PAGE__=/);
+   if(route !== '/blog/live') assert.match(html, /href="\/blog\/live"/);
    if(route==='/blog/live') {assert.match(html,/BlogPosting/);assert.match(html,/Public article body/);}
   }
   for (const route of ['/missing', '/blog/missing', '/blog/private']) assert.equal((await fetch(`${base}${route}`)).status,404);

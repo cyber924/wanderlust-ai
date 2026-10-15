@@ -43,16 +43,24 @@ import {
 import { onAuthStateChanged } from "firebase/auth";
 import { Compass, Sparkles, FolderHeart, CheckCircle2 } from "lucide-react";
 
-export default function App() {
+export interface InitialPageData {
+  pathname: string;
+  posts: BlogPost[];
+  post?: BlogPost | null;
+}
+
+export default function App({ initialData }: { initialData?: InitialPageData } = {}) {
+  const initialPath = initialData?.pathname || (typeof window !== "undefined" ? window.location.pathname : "/");
   const [activeTab, setActiveTab] = useState<
     "generator" | "image-generator" | "templates" | "posts" | "webzine" | "auth" | "sns" | "admin" | "pre-search" | "scheduling"
-  >(() => window.location.pathname === "/" || window.location.pathname === "/blog" || window.location.pathname.startsWith("/blog/") || window.location.pathname === "/webzine" ? "webzine" : "pre-search");
+  >(() => initialPath === "/" || initialPath === "/blog" || initialPath.startsWith("/blog/") || initialPath === "/webzine" ? "webzine" : "pre-search");
   const [categoryType, setCategoryType] = useState<
     "travel" | "life_info" | "food" | "trend"
   >("travel");
   const [currentPost, setCurrentPost] = useState<BlogPost | null>(null);
   const [savedPosts, setSavedPosts] = useState<BlogPost[]>([]);
   const [publishedPosts, setPublishedPosts] = useState<BlogPost[]>(() => {
+    if (initialData) return initialData.posts;
     if (typeof window !== "undefined" && Array.isArray((window as any).__INITIAL_POSTS__)) {
       return (window as any).__INITIAL_POSTS__;
     }
@@ -67,22 +75,15 @@ export default function App() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   
   // Admin Simulation State
-  const [isSimulatedAdmin, setIsSimulatedAdmin] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem("wanderlust_simulate_admin") === "true";
-    } catch {
-      return false;
-    }
-  });
-
-  // Sync simulation to localStorage
+  const [isSimulatedAdmin, setIsSimulatedAdmin] = useState(false);
+  // Restore browser-only preferences after hydration, so the first render matches HTML.
   useEffect(() => {
     try {
-      localStorage.setItem("wanderlust_simulate_admin", String(isSimulatedAdmin));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [isSimulatedAdmin]);
+      setIsSimulatedAdmin(localStorage.getItem("wanderlust_simulate_admin") === "true");
+      setLikedPostIds(new Set(JSON.parse(localStorage.getItem("wanderlust_liked_posts") || "[]")));
+      setScrappedPostIds(new Set(JSON.parse(localStorage.getItem("wanderlust_scrapped_posts") || "[]")));
+    } catch { /* Unavailable browser storage does not block public content. */ }
+  }, []);
 
   const isAdmin = user?.email === "cyber924@naver.com" || isSimulatedAdmin;
 
@@ -92,28 +93,15 @@ export default function App() {
   }, [publishedPosts]);
 
   const [selectedWebzineArticle, setSelectedWebzineArticle] = useState<BlogPost | null>(() => {
+    if (initialData) return initialData.post || null;
     if (typeof window !== "undefined" && (window as any).__INITIAL_POST__) {
       return (window as any).__INITIAL_POST__;
     }
     return null;
   });
   const [embedModalPost, setEmbedModalPost] = useState<BlogPost | null>(null);
-  const [likedPostIds, setLikedPostIds] = useState<Set<string>>(() => {
-    try {
-      const saved = localStorage.getItem("wanderlust_liked_posts");
-      return saved ? new Set(JSON.parse(saved)) : new Set<string>();
-    } catch {
-      return new Set<string>();
-    }
-  });
-  const [scrappedPostIds, setScrappedPostIds] = useState<Set<string>>(() => {
-    try {
-      const saved = localStorage.getItem("wanderlust_scrapped_posts");
-      return saved ? new Set(JSON.parse(saved)) : new Set<string>();
-    } catch {
-      return new Set<string>();
-    }
-  });
+  const [likedPostIds, setLikedPostIds] = useState<Set<string>>(() => new Set());
+  const [scrappedPostIds, setScrappedPostIds] = useState<Set<string>>(() => new Set());
 
   const [isDataLoaded, setIsDataLoaded] = useState(false);
 
@@ -412,8 +400,8 @@ export default function App() {
       return true;
     }
 
-    const pathname = window.location.pathname;
-    const hash = window.location.hash;
+    const pathname = typeof window !== "undefined" ? window.location.pathname : initialPath;
+    const hash = typeof window !== "undefined" ? window.location.hash : "";
     let targetId = "";
 
     if (pathname.startsWith("/blog/")) {
@@ -1135,7 +1123,10 @@ export default function App() {
                     setActiveTab("generator");
                   }}
                   isSimulatedAdmin={isSimulatedAdmin}
-                  setIsSimulatedAdmin={setIsSimulatedAdmin}
+                  setIsSimulatedAdmin={(value) => {
+                    setIsSimulatedAdmin(value);
+                    try { localStorage.setItem("wanderlust_simulate_admin", String(value)); } catch {}
+                  }}
                   onNavigateToTab={(tab) => setActiveTab(tab)}
                 />
               )}

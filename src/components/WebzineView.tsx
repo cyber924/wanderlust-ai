@@ -229,13 +229,18 @@ export const WebzineView: React.FC<WebzineViewProps> = ({
           <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3 pt-2 w-full">
             {featuredArticle && (
               <>
-                <button
-                  onClick={() => onOpenArticle(featuredArticle)}
+                <a
+                  href={`/blog/${encodeURIComponent(featuredArticle.id)}`}
+                  onClick={(event) => {
+                    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                    event.preventDefault();
+                    onOpenArticle(featuredArticle);
+                  }}
                   className="w-full sm:w-auto justify-center px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs sm:text-sm rounded-xl sm:rounded-2xl shadow-lg shadow-orange-500/25 transition-all flex items-center space-x-2 active:scale-95"
                 >
                   <BookOpen className="w-4 h-4" />
                   <span>대문 기사 전체 읽기</span>
-                </button>
+                </a>
 
                 <button
                   onClick={() => onOpenEmbedModal(featuredArticle)}
@@ -473,12 +478,17 @@ export const WebzineView: React.FC<WebzineViewProps> = ({
                           </button>
 
                           {/* Read full */}
-                          <button
-                            onClick={() => onOpenArticle(post)}
+                          <a
+                  href={`/blog/${encodeURIComponent(post.id)}`}
+                  onClick={(event) => {
+                    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                    event.preventDefault();
+                    onOpenArticle(post);
+                  }}
                             className="px-3 py-1.5 bg-stone-900 hover:bg-black text-white rounded-xl text-[10px] sm:text-xs font-bold transition-all"
                           >
                             읽기
-                          </button>
+                          </a>
                         </div>
                       </div>
                     </div>

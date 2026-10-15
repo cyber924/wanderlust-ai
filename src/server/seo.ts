@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { renderPage } from "./render.js";
 import { getBlogPostById, getAllPublicBlogPosts, isoDate } from "./db.js";
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80";
@@ -30,7 +31,7 @@ ${data.url ? `<link rel="canonical" href="${e(data.url)}"><meta property="og:url
 <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${e(data.title)}">
 <meta name="twitter:description" content="${e(data.description)}"><meta name="twitter:image" content="${e(data.image || FALLBACK_IMAGE)}">
 ${initial}`;
-  return html.replace("</head>", `${head}</head>`).replace('<div id="root"></div>', `<div id="root"><main style="max-width:1000px;margin:40px auto;padding:20px;font-family:sans-serif;line-height:1.8">${body}</main></div>`);
+  return html.replace("</head>", `${head}</head>`).replace('<div id="root"></div>', `<div id="root">${body}</div>`);
 }
 function respond(res: any, html: string, status = 200) {
   return res.status(status).set("Cache-Control", "no-store").type("html").send(html);
@@ -59,15 +60,17 @@ export async function handleBlogDetailPage(req: any, res: any, vite?: any) {
   const description = post.seoDescription || post.subtitle || post.markdownContent.replace(/[#*`]/g, "").slice(0, 140);
   const image = post.coverImageUrl || FALLBACK_IMAGE;
   const jsonLd = { "@context": "https://schema.org", "@type": "BlogPosting", headline: post.title, description, image, datePublished: isoDate(post.createdAt), dateModified: isoDate(post.updatedAt || post.createdAt), mainEntityOfPage: { "@type": "WebPage", "@id": url }, author: { "@type": "Organization", name: post.authorName || "Wanderlust AI" } };
-  const initial = `<script type="application/ld+json">${scriptJson(jsonLd)}</script><script>window.__INITIAL_POST__=${scriptJson(post)};window.__INITIAL_POSTS__=${scriptJson([post])};</script>`;
-  const body = `<nav><a href="/blog">← 공개 웹진 목록</a></nav><article><h1>${escapeHtml(post.title)}</h1><p>${escapeHtml(post.subtitle || "")}</p><img src="${escapeHtml(image)}" alt="${escapeHtml(post.title)}" style="max-width:100%;height:auto"><div style="white-space:pre-wrap">${escapeHtml(post.markdownContent)}</div></article>`;
+  const pageData = { pathname: req.path, posts: [post], post };
+  const initial = `<script type="application/ld+json">${scriptJson(jsonLd)}</script><script>window.__INITIAL_POST__=${scriptJson(post)};window.__INITIAL_POSTS__=${scriptJson([post])};window.__INITIAL_PAGE__=${scriptJson(pageData)};</script>`;
+  const body = renderPage(pageData);
   return respond(res, decorate(await template(req, vite), {title, description, url, image, article: true}, body, initial));
 }
 export async function handleStaticPage(req: any, res: any, vite?: any) {
   const posts = await getAllPublicBlogPosts();
   const title = req.path === "/blog" ? "여행·생활정보 공개 웹진 | Wanderlust AI" : "Wanderlust AI - 여행 블로그 자동화";
-  const body = `<h1>Wanderlust AI 공개 웹진</h1><p>여행과 생활정보를 만나보세요.</p>${posts.length ? posts.map(post => `<article><h2><a href="/blog/${encodeURIComponent(post.id)}">${escapeHtml(post.title)}</a></h2><p>${escapeHtml(post.seoDescription || post.subtitle || "")}</p></article>`).join("") : "<p>아직 공개된 글이 없습니다.</p>"}`;
-  return respond(res, decorate(await template(req, vite), { title, description: "여행과 맛집, 유용한 생활정보를 만나는 Wanderlust AI 공개 웹진", url: `${baseUrl(req)}${req.path}` }, body, `<script>window.__INITIAL_POSTS__=${scriptJson(posts)};</script>`));
+  const pageData = { pathname: req.path, posts };
+  const body = renderPage(pageData);
+  return respond(res, decorate(await template(req, vite), { title, description: "여행과 맛집, 유용한 생활정보를 만나는 Wanderlust AI 공개 웹진", url: `${baseUrl(req)}${req.path}` }, body, `<script>window.__INITIAL_POSTS__=${scriptJson(posts)};window.__INITIAL_PAGE__=${scriptJson(pageData)};</script>`));
 }
 export function handleNotFound(_req: any, res: any) {
   return respond(res, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>페이지를 찾을 수 없습니다 | Wanderlust AI</title><meta name="robots" content="noindex,follow"></head><body><h1>404 - 페이지를 찾을 수 없습니다</h1><a href="/blog">공개 웹진으로 이동</a></body></html>`, 404);

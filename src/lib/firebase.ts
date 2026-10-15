@@ -33,14 +33,16 @@ import { BlogPost, GeneratedImage, UserProfile, ScheduledTask } from "../types";
 import { SAMPLE_WEBZINE_ARTICLES } from "../data/webzineSampleArticles";
 import firebaseConfigJson from "../../firebase-applet-config.json";
 
+const clientEnv: Partial<ImportMetaEnv> = import.meta.env || {};
+
 export const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || firebaseConfigJson.apiKey,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || firebaseConfigJson.authDomain,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || firebaseConfigJson.projectId,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || firebaseConfigJson.storageBucket,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || firebaseConfigJson.messagingSenderId,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || firebaseConfigJson.appId,
-  firestoreDatabaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || firebaseConfigJson.firestoreDatabaseId || "(default)",
+  apiKey: clientEnv.VITE_FIREBASE_API_KEY || firebaseConfigJson.apiKey,
+  authDomain: clientEnv.VITE_FIREBASE_AUTH_DOMAIN || firebaseConfigJson.authDomain,
+  projectId: clientEnv.VITE_FIREBASE_PROJECT_ID || firebaseConfigJson.projectId,
+  storageBucket: clientEnv.VITE_FIREBASE_STORAGE_BUCKET || firebaseConfigJson.storageBucket,
+  messagingSenderId: clientEnv.VITE_FIREBASE_MESSAGING_SENDER_ID || firebaseConfigJson.messagingSenderId,
+  appId: clientEnv.VITE_FIREBASE_APP_ID || firebaseConfigJson.appId,
+  firestoreDatabaseId: clientEnv.VITE_FIREBASE_DATABASE_ID || firebaseConfigJson.firestoreDatabaseId || "(default)",
 };
 
 const app = !getApps().length
