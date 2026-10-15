@@ -1,12 +1,30 @@
 import express from "express";
+import path from "path";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
+import { handleSitemap, handleRobots, handleBlogDetailPage, handleStaticPage } from "./seo.js";
 
 dotenv.config();
 
 export const app = express();
 
 app.use(express.json({ limit: "10mb" }));
+
+// 1. Static files
+const distPath = path.join(process.cwd(), "dist");
+app.use(express.static(distPath));
+
+// 2. SEO & SSR routes
+app.get("/sitemap.xml", handleSitemap);
+app.get("/robots.txt", handleRobots);
+app.get("/blog/:id", (req, res) => handleBlogDetailPage(req, res));
+app.get("/", (req, res, next) => {
+  if (req.path === "/") {
+    return handleStaticPage(req, res);
+  }
+  next();
+});
+app.get("/blog", (req, res) => handleStaticPage(req, res));
 
 // Initialize Gemini AI Client dynamically
 const getGenAI = () => {
@@ -1133,6 +1151,11 @@ app.get("/api/google-news", async (req, res) => {
     ];
     res.json({ success: true, articles: fallbacks });
   }
+});
+
+// Fallback catch-all for SPA client-side routing
+app.get("*", (_req, res) => {
+  res.sendFile(path.join(distPath, "index.html"));
 });
 
 export default app;

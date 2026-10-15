@@ -11,8 +11,28 @@
       "destination": "/api"
     },
     {
-      "source": "/((?!api/).*)",
-      "destination": "/index.html"
+      "source": "/sitemap.xml",
+      "destination": "/api"
+    },
+    {
+      "source": "/robots.txt",
+      "destination": "/api"
+    },
+    {
+      "source": "/blog",
+      "destination": "/api"
+    },
+    {
+      "source": "/blog/:id",
+      "destination": "/api"
+    },
+    {
+      "source": "/",
+      "destination": "/api"
+    },
+    {
+      "source": "/((?!api/|assets/|favicon\\.ico).*)",
+      "destination": "/api"
     }
   ]
 }

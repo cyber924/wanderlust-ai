@@ -52,7 +52,12 @@ export default function App() {
   >("travel");
   const [currentPost, setCurrentPost] = useState<BlogPost | null>(null);
   const [savedPosts, setSavedPosts] = useState<BlogPost[]>([]);
-  const [publishedPosts, setPublishedPosts] = useState<BlogPost[]>([]);
+  const [publishedPosts, setPublishedPosts] = useState<BlogPost[]>(() => {
+    if (typeof window !== "undefined" && Array.isArray((window as any).__INITIAL_POSTS__)) {
+      return (window as any).__INITIAL_POSTS__;
+    }
+    return [];
+  });
   const [galleryImages, setGalleryImages] = useState<GeneratedImage[]>([]);
   const [dbStatus, setDbStatus] = useState<"connecting" | "success" | "offline" | "error">("connecting");
   const [dbErrorMessage, setDbErrorMessage] = useState<string | null>(null);
@@ -86,7 +91,12 @@ export default function App() {
     return publishedPosts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [publishedPosts]);
 
-  const [selectedWebzineArticle, setSelectedWebzineArticle] = useState<BlogPost | null>(null);
+  const [selectedWebzineArticle, setSelectedWebzineArticle] = useState<BlogPost | null>(() => {
+    if (typeof window !== "undefined" && (window as any).__INITIAL_POST__) {
+      return (window as any).__INITIAL_POST__;
+    }
+    return null;
+  });
   const [embedModalPost, setEmbedModalPost] = useState<BlogPost | null>(null);
   const [likedPostIds, setLikedPostIds] = useState<Set<string>>(() => {
     try {

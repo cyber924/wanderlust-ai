@@ -11,9 +11,9 @@ function getBaseUrl(req: any): string {
 function cleanText(markdown: string | undefined, limit: number = 140): string {
   if (!markdown) return "";
   const plainText = markdown
-    .replace(/[#*`_~\[\]()\-+=>!]/g, " ") // replace markdown syntax with space
-    .replace(/<[^>]*>/g, " ")             // replace HTML tags with space
-    .replace(/\s+/g, " ")                 // collapse whitespace
+    .replace(/[#*`_~\[\]()\-+=>!]/g, " ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
   
   if (plainText.length <= limit) return plainText;
@@ -47,7 +47,6 @@ export async function handleSitemap(req: any, res: any) {
 
     // 3. Blog Posts
     for (const post of posts) {
-      // Find the last modified date based on priority: updatedAt -> modifiedAt -> publishedAt -> createdAt
       const rawDate = post.updatedAt || post.createdAt;
       const lastmod = new Date(rawDate).toISOString();
 
@@ -90,7 +89,6 @@ export async function handleBlogDetailPage(req: any, res: any, vite?: any) {
   const postId = req.params.id;
   const baseUrl = getBaseUrl(req);
   
-  // 1. Read index.html
   let html = "";
   try {
     if (process.env.NODE_ENV !== "production" && vite) {
@@ -106,7 +104,6 @@ export async function handleBlogDetailPage(req: any, res: any, vite?: any) {
     return res.status(500).send("Internal Server Error");
   }
 
-  // 2. Fetch blog post
   const post = await getBlogPostById(postId);
   const now = new Date();
   
@@ -116,9 +113,7 @@ export async function handleBlogDetailPage(req: any, res: any, vite?: any) {
     new Date(post.createdAt) <= now;
 
   if (!isValid) {
-    // 404 NOT FOUND!
     res.status(404);
-    
     let modifiedHtml = html;
     modifiedHtml = modifiedHtml.replace(
       "<title>Wanderlust AI - 여행 블로그 자동화</title>",
@@ -129,14 +124,12 @@ export async function handleBlogDetailPage(req: any, res: any, vite?: any) {
       `  <meta name="robots" content="noindex, follow">\n  </head>`
     );
     modifiedHtml = modifiedHtml.replace(
-      "window.__INITIAL_ERROR__ = null;",
-      "window.__INITIAL_ERROR__ = \"NOT_FOUND\";"
+      '<div id="root"></div>',
+      '<div id="root"><div style="padding:80px 20px;text-align:center;font-family:sans-serif;"><h1 style="font-size:2rem;color:#1c1917;margin-bottom:12px;">404 - 글을 찾을 수 없습니다</h1><p style="color:#57534e;margin-bottom:24px;">요청하신 발행 글이 존재하지 않거나 비공개 상태입니다.</p><a href="/blog" style="background:#2563eb;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;">공개 웹진 목록으로 돌아가기</a></div></div>'
     );
-    
     return res.send(modifiedHtml);
   }
 
-  // 200 OK!
   res.status(200);
 
   const postTitle = post.title;
@@ -146,7 +139,6 @@ export async function handleBlogDetailPage(req: any, res: any, vite?: any) {
   const datePublished = new Date(post.createdAt).toISOString();
   const dateModified = new Date(post.updatedAt || post.createdAt).toISOString();
 
-  // JSON-LD Schema
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
@@ -161,7 +153,7 @@ export async function handleBlogDetailPage(req: any, res: any, vite?: any) {
     },
     "author": {
       "@type": "Organization",
-      "name": "Wanderlust AI"
+      "name": post.authorName || "Wanderlust AI"
     },
     "publisher": {
       "@type": "Organization",
@@ -172,54 +164,47 @@ export async function handleBlogDetailPage(req: any, res: any, vite?: any) {
 
   let modifiedHtml = html;
 
-  // Replace Title & Description
   modifiedHtml = modifiedHtml.replace(
     "<title>Wanderlust AI - 여행 블로그 자동화</title>",
     `<title>${postTitle} | Wanderlust AI</title>`
   );
-  modifiedHtml = modifiedHtml.replace(
-    `content="AI 협업기반 여행 & 생활정보 블로그 작성, 고화질 스냅 연동, 공개 웹진 및 네이버/티스토리 출처 자동 동봉 퍼가기 플랫폼"`,
-    `content="${postDesc.replace(/"/g, '&quot;')}"`
-  );
 
-  // Replace OpenGraph website/title/desc/image
-  modifiedHtml = modifiedHtml.replace(
-    `<meta property="og:type" content="website" />`,
-    `<meta property="og:type" content="article" />`
-  );
-  modifiedHtml = modifiedHtml.replace(
-    `<meta property="og:title" content="Wanderlust AI - 여행 블로그 자동화" />`,
-    `<meta property="og:title" content="${postTitle.replace(/"/g, '&quot;')}" />`
-  );
-  modifiedHtml = modifiedHtml.replace(
-    `<meta property="og:description" content="AI 협업기반 여행 & 생활정보 블로그 작성, 고화질 스냅 연동, 공개 웹진 및 네이버/티스토리 출처 자동 동봉 퍼가기 플랫폼" />`,
-    `<meta property="og:description" content="${postDesc.replace(/"/g, '&quot;')}" />`
-  );
-  modifiedHtml = modifiedHtml.replace(
-    `<meta property="og:image" content="https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80" />`,
-    `<meta property="og:image" content="${postImage}" />`
-  );
-
-  // Inject dynamic tags and structured data
   const additionalHeads = `
     <link rel="canonical" href="${postUrl}" />
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="${postTitle.replace(/"/g, '&quot;')}" />
+    <meta property="og:description" content="${postDesc.replace(/"/g, '&quot;')}" />
+    <meta property="og:image" content="${postImage}" />
     <meta property="og:url" content="${postUrl}" />
     <meta property="article:published_time" content="${datePublished}" />
     <meta property="article:modified_time" content="${dateModified}" />
     <script type="application/ld+json">
 ${JSON.stringify(jsonLd, null, 2)}
     </script>
+    <script>
+      window.__INITIAL_POST__ = ${JSON.stringify(post)};
+    </script>
   `;
 
-  modifiedHtml = modifiedHtml.replace(
-    "</head>",
-    `${additionalHeads}\n  </head>`
-  );
+  modifiedHtml = modifiedHtml.replace("</head>", `${additionalHeads}\n  </head>`);
 
-  modifiedHtml = modifiedHtml.replace(
-    "window.__INITIAL_ERROR__ = null;",
-    "window.__INITIAL_ERROR__ = null;"
-  );
+  const ssrContent = `
+    <div style="max-width:800px;margin:40px auto;padding:20px;font-family:sans-serif;color:#1c1917;">
+      <nav style="margin-bottom:20px;"><a href="/blog" style="color:#2563eb;text-decoration:none;font-weight:600;">← 웹진 목록으로 돌아가기</a></nav>
+      <article>
+        <h1 style="font-size:2.25rem;font-weight:bold;margin-bottom:12px;line-height:1.3;">${postTitle}</h1>
+        <p style="font-size:1.125rem;color:#57534e;margin-bottom:20px;">${post.subtitle || ''}</p>
+        <div style="display:flex;gap:16px;color:#78716c;font-size:0.875rem;margin-bottom:24px;border-bottom:1px solid #e7e5e4;padding-bottom:16px;">
+          <span>✍️ ${post.authorName || 'Wanderlust 에디터'}</span>
+          <span>📅 ${new Date(post.createdAt).toLocaleDateString()}</span>
+        </div>
+        ${postImage ? `<img src="${postImage}" alt="${postTitle}" style="width:100%;height:400px;object-fit:cover;border-radius:12px;margin-bottom:24px;" />` : ''}
+        <div style="line-height:1.8;color:#292524;white-space:pre-wrap;">${post.markdownContent || ''}</div>
+      </article>
+    </div>
+  `;
+
+  modifiedHtml = modifiedHtml.replace('<div id="root"></div>', `<div id="root">${ssrContent}</div>`);
 
   return res.send(modifiedHtml);
 }
@@ -247,12 +232,52 @@ export async function handleStaticPage(req: any, res: any, vite?: any) {
     return res.status(500).send("Internal Server Error");
   }
 
-  // Inject canonical and og:url
+  let posts: any[] = [];
+  try {
+    posts = await getAllPublicBlogPosts();
+  } catch (err) {
+    console.error("Error fetching posts for static SSR page:", err);
+  }
+
   let modifiedHtml = html;
   modifiedHtml = modifiedHtml.replace(
     "</head>",
     `    <link rel="canonical" href="${canonicalUrl}" />\n    <meta property="og:url" content="${canonicalUrl}" />\n  </head>`
   );
+
+  if (posts.length > 0) {
+    const postsHtml = `
+      <div style="max-width:1200px;margin:0 auto;padding:40px 20px;font-family:sans-serif;">
+        <header style="text-align:center;margin-bottom:40px;">
+          <h1 style="font-size:2.5rem;font-weight:bold;color:#1c1917;margin-bottom:12px;">Wanderlust AI 공개 웹진</h1>
+          <p style="font-size:1.125rem;color:#57534e;">AI가 실시간으로 분석하고 발행한 생생한 여행 및 생활정보 가이드</p>
+        </header>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:24px;">
+          ${posts.map(p => `
+            <div style="background:#fff;border:1px solid #e7e5e4;border-radius:16px;overflow:hidden;box-shadow:0 4px 6px -1px rgb(0 0 0 / 0.1);">
+              ${p.coverImageUrl ? `<img src="${p.coverImageUrl}" alt="${p.title}" style="width:100%;height:200px;object-fit:cover;" />` : ''}
+              <div style="padding:20px;">
+                <h2 style="font-size:1.25rem;font-weight:bold;margin-bottom:8px;line-height:1.4;">
+                  <a href="/blog/${p.id}" style="color:#1c1917;text-decoration:none;">${p.title}</a>
+                </h2>
+                <p style="font-size:0.95rem;color:#57534e;margin-bottom:16px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${p.seoDescription || p.subtitle || ''}</p>
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.85rem;color:#78716c;border-top:1px solid #f5f5f4;padding-top:12px;">
+                  <span>✍️ ${p.authorName || 'Wanderlust 에디터'}</span>
+                  <a href="/blog/${p.id}" style="color:#2563eb;font-weight:600;text-decoration:none;">자세히 보기 →</a>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+
+    modifiedHtml = modifiedHtml.replace('<div id="root"></div>', `<div id="root">${postsHtml}</div>`);
+    modifiedHtml = modifiedHtml.replace(
+      '</head>',
+      `  <script>window.__INITIAL_POSTS__ = ${JSON.stringify(posts)};</script>\n  </head>`
+    );
+  }
 
   res.status(200).send(modifiedHtml);
 }
