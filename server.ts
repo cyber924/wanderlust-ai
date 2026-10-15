@@ -1,8 +1,8 @@
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
-import app from "./src/server/app";
-import { handleSitemap, handleRobots, handleBlogDetailPage, handleStaticPage } from "./src/server/seo.js";
+import app from "./api/app.js";
+import { handleSitemap, handleRobots, handleBlogDetailPage, handleStaticPage } from "./api/seo.js";
 
 async function startServer() {
   const PORT = 3000;
