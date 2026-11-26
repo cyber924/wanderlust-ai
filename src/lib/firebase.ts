@@ -27,7 +27,7 @@ export function getLocalImages():GeneratedImage[]{try{return JSON.parse(localSto
 export function saveLocalImage(img:GeneratedImage){const rows=getLocalImages(),i=rows.findIndex(x=>x.id===img.id);if(i>=0)rows[i]=img;else rows.unshift(img);localStorage.setItem(IMAGES_KEY,JSON.stringify(rows));}
 export function deleteLocalImage(id:string){localStorage.setItem(IMAGES_KEY,JSON.stringify(getLocalImages().filter(x=>x.id!==id)));}
 export function mapDocToBlogPost(id:string,data:any):BlogPost{return {...data,id};}
-export async function savePostToFirestore(post:Omit<BlogPost,"id">&{id?:string}){const full={...post,id:post.id||crypto.randomUUID(),status:"draft" as const,isPublic:false};await api("/api/posts",{method:"POST",body:JSON.stringify({post:full})});saveLocalPost(full as BlogPost);return full.id;}
+export async function savePostToFirestore(post:Omit<BlogPost,"id">&{id?:string}){const idValue=post.id||crypto.randomUUID();const isExisting=Boolean(post.id&&getLocalPosts().some((item)=>item.id===post.id));const full={...post,id:idValue,...(!isExisting?{status:"draft" as const,isPublic:false}:{})};await api("/api/posts",{method:"POST",body:JSON.stringify({post:full})});saveLocalPost(full as BlogPost);return idValue;}
 export async function fetchPostsFromFirestore(){if(!await ensureAuth())return [];const d=await api("/api/posts");const posts=d.posts||[];localStorage.setItem(POSTS_KEY,JSON.stringify(posts));return posts as BlogPost[];}
 export async function fetchBlogsFromServer(){return fetchPostsFromFirestore();}
 export async function fetchPublishedPostsFromServer(){const d=await api("/api/posts/published");return (d.posts||[]) as BlogPost[];}
