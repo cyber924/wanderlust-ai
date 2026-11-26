@@ -78,6 +78,10 @@ async function api(request:Request,env:Env,url:URL):Promise<Response>{
   const rows=await env.DB.prepare("SELECT id,data_json,created_at,updated_at FROM posts WHERE user_id=? ORDER BY updated_at DESC").bind(user!.id).all<any>();
   return json({posts:rows.results.map((r:any)=>({...JSON.parse(r.data_json),id:r.id,createdAt:r.created_at,updatedAt:r.updated_at}))});
  }
+ if(path==="/api/posts"&&method==="DELETE"){
+  const postId=url.searchParams.get("id");if(!postId)return json({error:"id is required"},400);
+  await env.DB.prepare("DELETE FROM posts WHERE id=? AND user_id=?").bind(postId,user!.id).run();return json({ok:true});
+ }
  if(path==="/api/posts"&&method==="POST"){
   const b:any=await request.json(),post=b.post||b,idValue=String(post.id||id()),time=now();
   await env.DB.prepare("INSERT INTO posts(id,user_id,status,is_public,data_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status,is_public=excluded.is_public,data_json=excluded.data_json,updated_at=excluded.updated_at WHERE posts.user_id=excluded.user_id").bind(idValue,user!.id,post.status||"draft",post.isPublic?1:0,JSON.stringify({...post,id:idValue}),post.createdAt||time,time).run();
@@ -156,5 +160,24 @@ export default {async fetch(request:Request,env:Env):Promise<Response>{
  const url=new URL(request.url);
  if(url.pathname.startsWith("/api/")){try{return await api(request,env,url);}catch(e){console.error("Wanderlust API error",e);return json({error:e instanceof Error?e.message:"Internal server error"},500);}}
  if(url.pathname!=="/"&&url.pathname.endsWith("/"))return Response.redirect(new URL(url.pathname.replace(/\/+$/,"")+url.search,url),308);
+ if(path==="/sitemap.xml"&&method==="GET"){
+  const rows=await env.DB.prepare("SELECT id,updated_at FROM posts WHERE is_public=1 ORDER BY updated_at DESC LIMIT 500").all<any>();
+  const urls=rows.results.map((p:any)=>`<url><loc>${url.origin}/blog/${encodeURIComponent(p.id)}</loc><lastmod>${p.updated_at}</lastmod></url>`).join("");
+  return new Response(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${url.origin}/</loc></url><url><loc>${url.origin}/blog</loc></url>${urls}</urlset>`,{headers:{"content-type":"application/xml; charset=utf-8","cache-control":"public, max-age=300"}});
+ }
+ if(path==="/robots.txt"&&method==="GET")return new Response("User-agent: *\\nAllow: /\\nSitemap: "+url.origin+"/sitemap.xml",{headers:{"content-type":"text/plain; charset=utf-8"}});
+ const blogPath=path.match(/^\\/blog\\/([^/]+)$/);
+ if(blogPath&&method==="GET"){
+  const post=await env.DB.prepare("SELECT data_json FROM posts WHERE id=? AND is_public=1").bind(decodeURIComponent(blogPath[1])).first<{data_json:string}>();
+  if(post){
+   const data=JSON.parse(post.data_json),html=await env.ASSETS.fetch(new Request(new URL("/",url),request)),source=await html.text();
+   const title=String(data.title||"Wanderlust AI").replace(/[&<>"]/g,(c:string)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]||c));
+   const description=String(data.seoDescription||data.subtitle||"").replace(/[&<>"]/g,(c:string)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]||c));
+   const image=String(data.coverImageUrl||"");
+   const meta=`<title>${title} | Wanderlust AI</title><meta name="description" content="${description}"><meta property="og:type" content="article"><meta property="og:title" content="${title}"><meta property="og:description" content="${description}">${image?`<meta property="og:image" content="${image}">`:""}<link rel="canonical" href="${url.origin}${path}"><script type="application/ld+json">${JSON.stringify({"@context":"https://schema.org","@type":"BlogPosting","headline":data.title,"description":data.seoDescription||data.subtitle,"image":image||undefined,"datePublished":data.createdAt,"dateModified":data.updatedAt})}</script>`;
+   const output=source.replace(/<title>[\\s\\S]*?<\\/title>/i,meta);
+   return new Response(output,{headers:{"content-type":"text/html; charset=utf-8","cache-control":"public, max-age=60"}});
+  }
+ }
  return env.ASSETS.fetch(request);
 }};
