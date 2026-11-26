@@ -18,4 +18,13 @@ This branch is the Cloudflare-native migration track. The original `main` branch
 5. Build and deploy: `npm run build && npx wrangler deploy`.
 
 ## Migration status
-The API foundation is being ported incrementally. The existing Firebase client is not removed until each corresponding UI workflow has been migrated and verified. Do not connect production traffic to this branch until the migration checklist is complete.
+The migration branch now contains a Cloudflare Worker API adapter used by the main application for email auth, D1 blog archive/publication, image URL metadata, SNS package archive, topic bookmarks, Google News RSS, Gemini generation endpoints, and visit-triggered deferred scheduling. The legacy Firebase migration utility and some AdminMenu-only simulated controls/localStorage paths still need a full audit before production use. The UI build and live Worker/D1 integration have not yet been verified.
+
+## Required bindings and secrets
+- D1 binding name: `DB`
+- Static assets binding: `ASSETS`
+- Worker secret: `GEMINI_API_KEY`
+- Non-secret model variable: `GEMINI_MODEL=gemini-3.8-flash`
+
+## Deferred publishing contract
+There is deliberately no Cron Trigger in this project. The scheduling page asks `POST /api/scheduled/due` for overdue pending tasks. D1 conditionally changes each matching task from `pending` to `processing`, so simultaneous tabs cannot claim the same task twice. The browser then performs the generation workflow and writes the result through the Worker APIs. If nobody visits the scheduling page, queued tasks remain pending.
