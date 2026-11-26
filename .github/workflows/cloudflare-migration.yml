@@ -1,0 +1,20 @@
+name: Cloudflare migration checks
+on:
+  push:
+    branches:
+      - cloudflare-migration
+  pull_request:
+    branches:
+      - cloudflare-migration
+jobs:
+  build-and-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npm run test:cloudflare
+      - run: npm run build
+      - run: npx esbuild src/worker.ts --bundle --platform=browser --format=esm --outfile=/tmp/wanderlust-worker.js
