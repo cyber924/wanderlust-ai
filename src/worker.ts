@@ -165,8 +165,8 @@ export default {async fetch(request:Request,env:Env):Promise<Response>{
   const urls=rows.results.map((p:any)=>`<url><loc>${url.origin}/blog/${encodeURIComponent(p.id)}</loc><lastmod>${p.updated_at}</lastmod></url>`).join("");
   return new Response(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${url.origin}/</loc></url><url><loc>${url.origin}/blog</loc></url>${urls}</urlset>`,{headers:{"content-type":"application/xml; charset=utf-8","cache-control":"public, max-age=300"}});
  }
- if(path==="/robots.txt"&&method==="GET")return new Response("User-agent: *\\nAllow: /\\nSitemap: "+url.origin+"/sitemap.xml",{headers:{"content-type":"text/plain; charset=utf-8"}});
- const blogPath=path.match(/^\\/blog\\/([^/]+)$/);
+ if(path==="/robots.txt"&&method==="GET")return new Response("User-agent: *\nAllow: /\nSitemap: "+url.origin+"/sitemap.xml",{headers:{"content-type":"text/plain; charset=utf-8"}});
+ const blogPath=path.match(/^\/blog\/([^/]+)$/);
  if(blogPath&&method==="GET"){
   const post=await env.DB.prepare("SELECT data_json FROM posts WHERE id=? AND is_public=1").bind(decodeURIComponent(blogPath[1])).first<{data_json:string}>();
   if(post){
@@ -175,7 +175,7 @@ export default {async fetch(request:Request,env:Env):Promise<Response>{
    const description=String(data.seoDescription||data.subtitle||"").replace(/[&<>"]/g,(c:string)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]||c));
    const image=String(data.coverImageUrl||"");
    const meta=`<title>${title} | Wanderlust AI</title><meta name="description" content="${description}"><meta property="og:type" content="article"><meta property="og:title" content="${title}"><meta property="og:description" content="${description}">${image?`<meta property="og:image" content="${image}">`:""}<link rel="canonical" href="${url.origin}${path}"><script type="application/ld+json">${JSON.stringify({"@context":"https://schema.org","@type":"BlogPosting","headline":data.title,"description":data.seoDescription||data.subtitle,"image":image||undefined,"datePublished":data.createdAt,"dateModified":data.updatedAt})}</script>`;
-   const output=source.replace(/<title>[\\s\\S]*?<\\/title>/i,meta);
+   const output=source.replace(/<title>[\s\S]*?<\/title>/i,meta);
    return new Response(output,{headers:{"content-type":"text/html; charset=utf-8","cache-control":"public, max-age=60"}});
   }
  }
