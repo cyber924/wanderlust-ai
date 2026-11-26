@@ -27,6 +27,7 @@ import {
   Bookmark,
 } from "lucide-react";
 import { SNSPackage, BlogPost, CardSlide } from "../types";
+import { fetchSnsPackages, saveSnsPackage, deleteSnsPackage } from "../lib/firebase";
 
 interface SNSStudioProps {
   savedPosts?: BlogPost[];
@@ -183,27 +184,29 @@ export const SNSStudio: React.FC<SNSStudioProps> = ({ savedPosts = [], onOpenBlo
   const cardSlideRef = useRef<HTMLDivElement>(null);
 
   // SNS Saved Archive State
-  const [savedPackages, setSavedPackages] = useState<SNSPackage[]>(() => {
-    try {
-      const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [savedPackages, setSavedPackages] = useState<SNSPackage[]>([]);
+  useEffect(() => {
+    let active = true;
+    fetchSnsPackages().then((items) => { if (active) setSavedPackages(items); })
+      .catch((error) => console.warn("SNS D1 archive load:", error));
+    return () => { active = false; };
+  }, []);
 
   // Archive search term
   const [archiveSearchTerm, setArchiveSearchTerm] = useState("");
   const [saveSuccessNotice, setSaveSuccessNotice] = useState<string | null>(null);
 
-  // Sync saved packages to LocalStorage
+  // Persist SNS archive in Cloudflare D1 (account-scoped)
   const persistSavedPackages = (updated: SNSPackage[]) => {
+    const removed = savedPackages.filter((old) => !updated.some((item) => item.id === old.id));
     setSavedPackages(updated);
-    try {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
-    } catch (e) {
-      console.error("Failed to save to localStorage:", e);
-    }
+    Promise.all([
+      ...updated.map((item) => saveSnsPackage(item)),
+      ...removed.map((item) => deleteSnsPackage(item.id))
+    ]).catch((error) => {
+      console.error("Failed to sync SNS archive to D1:", error);
+      setSaveSuccessNotice("서버 보관함 저장에 실패했습니다. 로그인과 연결 상태를 확인해 주세요.");
+    });
   };
 
   // Quick Preset Topics
