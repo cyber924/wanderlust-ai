@@ -121,7 +121,33 @@ async function api(request:Request,env:Env,url:URL):Promise<Response>{
 
  if(path==="/api/generate-blog"&&method==="POST"){
   const b:any=await request.json();if(!b.destination)return json({error:"주제를 입력해 주세요."},400);
-  try{const raw=await gemini(env,"한국어 전문 블로그 에디터로서 "+b.destination+" 주제로 1500자 이상의 실용적인 블로그를 작성하세요. 유형 "+(b.categoryType||"travel")+". 기간 "+(b.duration||"")+". 스타일 "+(b.travelStyle||"")+". 키워드 "+(b.keywords||[]).join(",")+". 반드시 JSON 객체만 반환하고 title,subtitle,destination,duration,concept,tone,targetAudience,budget,season,metaKeywords(배열),hashtags(배열),itinerary(배열),markdownContent,travelTips(배열),seoDescription 필드를 포함하세요.");const data=parseAIJson(raw);return json({success:true,data});}
+  const category=String(b.categoryType||"travel"),topic=String(b.destination),keywords=(b.keywords||[]).join(", ");
+  const prompt=`당신은 한국어 전문 여행·라이프스타일 매거진 편집자이자 네이버/구글 SEO 콘텐츠 전략가입니다.
+주제: ${topic}
+콘텐츠 유형: ${category}
+기간/소요시간: ${b.duration||"주제에 적합하게 판단"}
+스타일: ${b.travelStyle||"실용적이고 감성적인 전문 에디터"}
+핵심 키워드: ${keywords}
+세부 장소/정보: ${b.specificSpots||"주제에 맞게 선정"}
+타깃 독자: ${b.targetAudience||"일반 독자"}
+문체: ${b.tone||"친근하고 신뢰감 있는 한국어"}
+언어: ${b.language||"한국어"}
+
+작성 규칙:
+1. 검색 의도에 직접 답하는 구체적인 제목과 2문장 요약을 작성하세요.
+2. 본문은 최소 1,800자 이상으로 작성하고 도입, 핵심 정보, 단계별 설명, 실전 팁, FAQ, 결론을 논리적으로 구성하세요.
+3. 여행은 일정별 Day/시간대, 이동 동선, 명소, 교통, 예산, 계절 정보를 포함하세요. 맛집은 메뉴·가격대·웨이팅·주차·방문 시간 등 확인이 필요한 항목을 사실처럼 꾸며내지 말고 확인 필요라고 표시하세요. 생활정보는 준비물, 단계별 실행법, 주의사항, 비용 절감 팁을 포함하세요. 트렌드는 현상·배경·참여 방법·주의사항을 구분하세요.
+4. 네이버 검색을 위해 메인 키워드를 제목과 소제목 및 본문에 자연스럽게 배치하고, 구글 검색을 위해 명확한 H2/H3 구조와 요약·FAQ를 포함하세요. 키워드 반복 도배는 금지합니다.
+5. 근거가 확인되지 않은 실시간 순위, 가격, 운영시간, 정책, 통계를 단정하지 마세요. 추측 정보는 추정 또는 확인 필요로 표시하세요.
+6. 본문에는 이미지 삽입 위치를 [사진: 장면 설명] 형식으로 3~5곳 표시하세요.
+7. JSON만 출력하세요. 마크다운 코드펜스나 설명문은 붙이지 마세요.
+
+반드시 다음 JSON 필드를 포함하세요:
+title, subtitle, destination, duration, concept, tone, targetAudience, budget, season,
+metaKeywords(문자열 배열), hashtags(# 포함 문자열 배열),
+itinerary(배열: day, title, activities; activities는 time, spot, description, tip, photoPrompt),
+markdownContent(완성된 본문 문자열), travelTips(문자열 배열), seoDescription(검색 결과용 120~160자 요약).`;
+  try{const raw=await gemini(env,prompt);const data=parseAIJson(raw);if(!data.title||!data.markdownContent)throw new Error("AI 응답에 제목 또는 본문이 없습니다.");return json({success:true,data});}
   catch(e){return json({success:false,error:e instanceof Error?e.message:"블로그 생성 실패"},502);}
  }
  if(path==="/api/generate-sns"&&method==="POST"){
