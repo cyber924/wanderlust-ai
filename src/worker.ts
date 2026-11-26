@@ -77,7 +77,7 @@ async function api(request:Request,env:Env,url:URL):Promise<Response>{
  }
  if(path==="/api/generate-topics"&&method==="POST"){
   const b:any=await request.json(),category=String(b.category||b.categoryType||"travel");
-  try{const text=await gemini(env,`한국어 콘텐츠 전략가로서 ${category} 분야의 최신성 있는 블로그 주제 5개를 추천하세요. 각 항목을 id,title,description,keywords 배열,travelStyle,duration,icon,reason 필드로 갖는 JSON 배열만 출력하세요. 사실로 확인되지 않은 최신 사건은 단정하지 마세요.`);const clean=text.replace(/^```json\s*/,"").replace(/\s*```$/,"");return json({success:true,topics:JSON.parse(clean)});}
+  try{const text=await gemini(env,`한국어 콘텐츠 전략가로서 ${category} 분야의 최신성 있는 블로그 주제 5개를 추천하세요. 각 항목을 id,title,description,keywords 배열,travelStyle,duration,icon,reason 필드로 갖는 JSON 배열만 출력하세요. 사실로 확인되지 않은 최신 사건은 단정하지 마세요.`);return json({success:true,topics:parseAIJson(text)});}
   catch(e){return json({error:e instanceof Error?e.message:"주제 추천 실패"},502);}
  }
  const user=await currentUser(request,env);
