@@ -40,8 +40,8 @@ async function googleNews(section:string){
  if(!res.ok)throw new Error("Google News RSS HTTP "+res.status);
  const xml=await res.text();const items=[...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].slice(0,10).map(m=>{
   const block=m[1];const get=(tag:string)=>xmlText(block.match(new RegExp("<"+tag+">([\\s\\S]*?)</"+tag+">","i"))?.[1]||"");
-  const title=get("title"),link=get("link"),pubDate=get("pubDate"),source=get("source");
-  return {title,link,pubDate,source};
+  let title=get("title");const link=get("link"),pubDate=get("pubDate");let source=get("source");const sourceSep=title.lastIndexOf(" - ");if(!source&&sourceSep>0){source=title.slice(sourceSep+3).trim();title=title.slice(0,sourceSep).trim();}
+  return {title,link,pubDate,source:source||"구글 뉴스"};
  }).filter(x=>x.title&&x.link);
  return items;
 }
