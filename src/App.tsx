@@ -39,8 +39,9 @@ import {
   publishPostAtomic,
   unpublishPostAtomic,
   ensureAuth,
+  onAuthStateChanged,
+  claimDueScheduledTasks,
 } from "./lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
 import { Compass, Sparkles, FolderHeart, CheckCircle2 } from "lucide-react";
 
 export interface InitialPageData {
@@ -217,10 +218,7 @@ export default function App({ initialData }: { initialData?: InitialPageData } =
     let active = true;
     async function scanScheduledTasks() {
       try {
-        const scheduledTasks = await fetchScheduledTasksFromFirestore();
-        const pendingPassedTasks = scheduledTasks.filter(
-          (task) => task.status === "pending" && new Date(task.scheduledAt) <= new Date()
-        );
+        const pendingPassedTasks = await claimDueScheduledTasks();
 
         if (pendingPassedTasks.length === 0) return;
 
@@ -383,16 +381,13 @@ export default function App({ initialData }: { initialData?: InitialPageData } =
       }
     }
 
-    if (isDataLoaded) {
+    if (isDataLoaded && activeTab === "scheduling" && user) {
+      // Deferred publishing: inspect and claim overdue jobs only when the user opens Scheduling.
+      // No Cron Trigger and no background polling; a D1 conditional update prevents duplicate claims.
       scanScheduledTasks();
-      // Periodically scan every 45 seconds while user is on page
-      const interval = setInterval(scanScheduledTasks, 45000);
-      return () => {
-        active = false;
-        clearInterval(interval);
-      };
+      return () => { active = false; };
     }
-  }, [isDataLoaded]);
+  }, [isDataLoaded, activeTab, user?.uid]);
 
   // Calculate if the current URL points to a non-existent blog post (yielding a 404)
   const isUrl404 = useMemo(() => {
