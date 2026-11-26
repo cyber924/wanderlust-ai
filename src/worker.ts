@@ -23,14 +23,14 @@ async function gemini(env:Env,prompt:string){
  const data:any=await response.json();if(!response.ok)throw new Error(data?.error?.message||"Gemini request failed");
  return data?.candidates?.[0]?.content?.parts?.map((p:any)=>p.text||"").join("")||"";
 }
-const NEWS:Record<string,string>={all:"",economy:"BUSINESS",life:"NATION",entertainment:"ENTERTAINMENT",sports:"SPORTS",it:"TECHNOLOGY"};
+const NEWS:Record<string,string>={"": "",BUSINESS:"BUSINESS",LIFESTYLE:"LIFESTYLE",ENTERTAINMENT:"ENTERTAINMENT",SPORTS:"SPORTS",TECHNOLOGY:"TECHNOLOGY"};
 function xmlText(s:string){return s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,"$1").replace(/<[^>]+>/g,"").replace(/&amp;/g,"&").replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&lt;/g,"<").replace(/&gt;/g,">").trim();}
 async function googleNews(section:string){
- const topic=NEWS[section]??"";
+ const topic=NEWS[section]??section;
  const url=topic?`https://news.google.com/rss/headlines/section/topic/${topic}?hl=ko&gl=KR&ceid=KR:ko`:"https://news.google.com/rss?hl=ko&gl=KR&ceid=KR:ko";
  const res=await fetch(url,{headers:{"user-agent":"WanderlustAI/1.0 RSS reader","accept":"application/rss+xml, application/xml, text/xml"}});
  if(!res.ok)throw new Error("Google News RSS HTTP "+res.status);
- const xml=await res.text();const items=[...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].slice(0,20).map(m=>{
+ const xml=await res.text();const items=[...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].slice(0,10).map(m=>{
   const block=m[1];const get=(tag:string)=>xmlText(block.match(new RegExp("<"+tag+">([\\s\\S]*?)</"+tag+">","i"))?.[1]||"");
   const title=get("title"),link=get("link"),pubDate=get("pubDate"),source=get("source");
   return {title,link,pubDate,source};
@@ -69,7 +69,7 @@ async function api(request:Request,env:Env,url:URL):Promise<Response>{
  }
  if(path==="/api/generate-topics"&&method==="POST"){
   const b:any=await request.json(),category=String(b.category||b.categoryType||"travel");
-  try{const text=await gemini(env,`한국어 콘텐츠 전략가로서 ${category} 분야의 최신성 있는 블로그 주제 5개를 추천하세요. 각 항목을 title, description, keywords 배열, style 필드로 갖는 JSON 배열만 출력하세요. 사실로 확인되지 않은 최신 사건은 단정하지 마세요.`);const clean=text.replace(/^```json\s*/,"").replace(/\s*```$/,"");return json({success:true,topics:JSON.parse(clean)});}
+  try{const text=await gemini(env,`한국어 콘텐츠 전략가로서 ${category} 분야의 최신성 있는 블로그 주제 5개를 추천하세요. 각 항목을 id,title,description,keywords 배열,travelStyle,duration,icon,reason 필드로 갖는 JSON 배열만 출력하세요. 사실로 확인되지 않은 최신 사건은 단정하지 마세요.`);const clean=text.replace(/^```json\s*/,"").replace(/\s*```$/,"");return json({success:true,topics:JSON.parse(clean)});}
   catch(e){return json({error:e instanceof Error?e.message:"주제 추천 실패"},502);}
  }
  const user=await currentUser(request,env);
