@@ -152,7 +152,28 @@ markdownContent(완성된 본문 문자열), travelTips(문자열 배열), seoDe
  }
  if(path==="/api/generate-sns"&&method==="POST"){
   const b:any=await request.json();if(!b.topic)return json({error:"SNS 주제를 입력해 주세요."},400);
-  try{const raw=await gemini(env,"한국어 SNS 전문 에디터. 주제 "+b.topic+". 대상 "+(b.targetAudience||"")+". 톤 "+(b.tone||"")+". 키워드 "+(b.keywords||[]).join(",")+". 원문 "+String(b.sourceContent||"").slice(0,5000)+". 플랫폼 "+(b.selectedPlatforms||[]).join(",")+". JSON 객체만 반환. topic,category,targetAudience,tone,selectedPlatforms 필드와 각 선택 플랫폼의 구조화 결과를 작성하세요. instagram:{caption,hashtags,callToAction,cardSlides:[{slideNumber,badge,title,subtitle,points,footerNote,imagePrompt}]}; threads:{posts}; twitterX:{tweet}; metaFacebook:{post}; shortform:{title,hook,totalDurationSec,scenes:[{sceneNumber,timeRange,visualDirection,onScreenText,spokenScript}]}");const data=parseAIJson(raw);return json({success:true,data:{...data,id:id(),createdAt:now()}});}
+  const platforms=(b.selectedPlatforms||["instagram","threads"]) as string[];
+  const prompt=`당신은 여행·라이프스타일 분야의 상위 인플루언서이자 플랫폼별 SNS 콘텐츠 디렉터입니다.
+주제: ${b.topic}
+카테고리: ${b.category||"travel"}
+타깃: ${b.targetAudience||"2030 여행·정보 탐색 독자"}
+톤: ${b.tone||"친근하고 트렌디한 인플루언서"}
+키워드: ${(b.keywords||[]).join(", ")}
+원본 블로그: ${b.sourceBlogTitle||""}
+원문 내용: ${String(b.sourceContent||"").slice(0,6000)}
+생성 플랫폼: ${platforms.join(", ")}
+
+플랫폼별 작성 규칙:
+- instagram: 저장을 유도하는 강한 첫 문장, 실용적인 캡션, CTA, 해시태그 8~15개, 정확히 4장의 카드 슬라이드. 각 슬라이드는 slideNumber,badge,title,subtitle,points(2~4개),footerNote,imagePrompt 필드 포함. 1장은 후킹, 2~3장은 핵심 정보, 4장은 요약/CTA.
+- threads: 자연스럽고 대화체인 연속 게시물 정확히 3개. 첫 글은 공감/후킹, 두 번째는 유용한 정보, 세 번째는 질문 또는 대화 유도.
+- twitterX: 250자 이내의 밀도 높은 단일 게시물. 핵심 사실과 반응 유도.
+- metaFacebook: 맥락과 실용 정보를 충분히 설명하는 커뮤니티 친화형 게시물, 문단과 질문 포함.
+- shortform: 릴스/쇼츠/틱톡용 20~35초 구성. title,hook,totalDurationSec,scenes 배열. 각 씬은 sceneNumber,timeRange,visualDirection,onScreenText,spokenScript 필드 포함. 시작 3초 후킹 필수.
+
+선택하지 않은 플랫폼의 결과는 만들지 마세요. 원문이 제공되면 사실관계와 핵심 메시지를 보존하고 플랫폼에 맞게 재구성하세요. JSON 객체만 출력하고 코드펜스나 설명문은 금지합니다.
+필수 공통 필드: topic,category,targetAudience,tone,selectedPlatforms.
+instagram:{caption,hashtags,callToAction,cardSlides}; threads:{posts}; twitterX:{tweet}; metaFacebook:{post}; shortform:{title,hook,totalDurationSec,scenes}.`;
+  try{const raw=await gemini(env,prompt);const data=parseAIJson(raw);return json({success:true,data:{...data,id:id(),createdAt:now(),selectedPlatforms:platforms}});}
   catch(e){return json({success:false,error:e instanceof Error?e.message:"SNS 생성 실패"},502);}
  }
  if((path==="/api/generate-image"||path==="/api/generate-images")&&method==="POST"){
