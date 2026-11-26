@@ -6,7 +6,7 @@ const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 
 test("Cloudflare Worker exposes D1-backed service APIs", async () => {
   const worker = await read("../src/worker.ts");
-  for (const route of ["/api/auth/register", "/api/auth/login", "/api/posts", "/api/posts/published", "/api/images", "/api/sns-packages", "/api/topic-bookmarks", "/api/scheduled/due", "/api/google-news", "/api/generate-blog", "/api/generate-sns"]) {
+  for (const route of ["/api/auth/register", "/api/auth/login", "/api/posts", "/api/posts/published", "/api/images", "/api/sns-packages", "/api/topic-bookmarks", "/api/scheduled/due", "/api/google-news", "/api/generate-blog", "/api/generate-sns", "/api/templates/recommend"]) {
     assert.ok(worker.includes(route), `missing route ${route}`);
   }
 });
