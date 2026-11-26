@@ -106,6 +106,50 @@ async function api(request:Request,env:Env,url:URL):Promise<Response>{
   const idValue=url.searchParams.get("id");if(!idValue)return json({error:"id is required"},400);
   await env.DB.prepare("DELETE FROM scheduled_tasks WHERE id=? AND user_id=?").bind(idValue,user!.id).run();return json({ok:true});
  }
+
+ if(path==="/api/generate-blog"&&method==="POST"){
+  const b:any=await request.json();if(!b.destination)return json({error:"주제를 입력해 주세요."},400);
+  try{const raw=await gemini(env,"한국어 전문 블로그 에디터로서 "+b.destination+" 주제로 1500자 이상의 실용적인 블로그를 작성하세요. 유형 "+(b.categoryType||"travel")+". 기간 "+(b.duration||"")+". 스타일 "+(b.travelStyle||"")+". 키워드 "+(b.keywords||[]).join(",")+". 반드시 JSON 객체만 반환하고 title,subtitle,destination,duration,concept,tone,targetAudience,budget,season,metaKeywords(배열),hashtags(배열),itinerary(배열),markdownContent,travelTips(배열),seoDescription 필드를 포함하세요.");const data=JSON.parse(raw);return json({success:true,data});}
+  catch(e){return json({success:false,error:e instanceof Error?e.message:"블로그 생성 실패"},502);}
+ }
+ if(path==="/api/generate-sns"&&method==="POST"){
+  const b:any=await request.json();if(!b.topic)return json({error:"SNS 주제를 입력해 주세요."},400);
+  try{const raw=await gemini(env,"한국어 SNS 전문 에디터. 주제 "+b.topic+". 대상 "+(b.targetAudience||"")+". 톤 "+(b.tone||"")+". 키워드 "+(b.keywords||[]).join(",")+". 원문 "+String(b.sourceContent||"").slice(0,5000)+". 플랫폼 "+(b.selectedPlatforms||[]).join(",")+". JSON 객체만 반환. topic,category,targetAudience,tone,selectedPlatforms 필드와 각 선택 플랫폼의 구조화 결과를 작성하세요. instagram:{caption,hashtags,callToAction,cardSlides:[{slideNumber,badge,title,subtitle,points,footerNote,imagePrompt}]}; threads:{posts}; twitterX:{tweet}; metaFacebook:{post}; shortform:{title,hook,totalDurationSec,scenes:[{sceneNumber,timeRange,visualDirection,onScreenText,spokenScript}]}");const data=JSON.parse(raw);return json({success:true,data:{...data,id:id(),createdAt:now()}});}
+  catch(e){return json({success:false,error:e instanceof Error?e.message:"SNS 생성 실패"},502);}
+ }
+ if((path==="/api/generate-image"||path==="/api/generate-images")&&method==="POST"){
+  const b:any=await request.json(),count=Math.min(8,Math.max(1,Number(b.count)||1)),prompt=String(b.prompt||b.destination||"travel photography");
+  const images=Array.from({length:count},(_,i)=>({id:id(),imageUrl:"https://image.pollinations.ai/prompt/"+encodeURIComponent(prompt+" cinematic high quality photography "+(i+1))+"?width=1280&height=720&nologo=true",destination:b.destination||prompt,style:b.style||"",lighting:b.lighting||"",aspectRatio:b.aspectRatio||"16:9",prompt,createdAt:now()}));
+  return json({success:true,imageUrl:images[0].imageUrl,images});
+ }
+ if(path==="/api/images"&&method==="GET"){
+  const rows=await env.DB.prepare("SELECT id,data_json,created_at FROM generated_images WHERE user_id=? ORDER BY created_at DESC").bind(user!.id).all<any>();return json({images:rows.results.map((r:any)=>({...JSON.parse(r.data_json),id:r.id,createdAt:r.created_at}))});
+ }
+ if(path==="/api/images"&&method==="POST"){
+  const b:any=await request.json(),img=b.image||b,imageId=String(img.id||id()),time=now();
+  await env.DB.prepare("INSERT INTO generated_images(id,user_id,image_url,data_json,created_at) VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET image_url=excluded.image_url,data_json=excluded.data_json WHERE generated_images.user_id=excluded.user_id").bind(imageId,user!.id,img.imageUrl,JSON.stringify({...img,id:imageId}),time).run();return json({ok:true,id:imageId});
+ }
+ if(path==="/api/images"&&method==="DELETE"){
+  const imageId=url.searchParams.get("id");if(imageId)await env.DB.prepare("DELETE FROM generated_images WHERE id=? AND user_id=?").bind(imageId,user!.id).run();else await env.DB.prepare("DELETE FROM generated_images WHERE user_id=?").bind(user!.id).run();return json({ok:true});
+ }
+ if(path==="/api/sns-packages"&&method==="GET"){
+  const rows=await env.DB.prepare("SELECT id,data_json FROM sns_packages WHERE user_id=? ORDER BY updated_at DESC").bind(user!.id).all<any>();return json({packages:rows.results.map((r:any)=>({...JSON.parse(r.data_json),id:r.id}))});
+ }
+ if(path==="/api/sns-packages"&&method==="POST"){
+  const b:any=await request.json(),pkg=b.package||b,pkgId=String(pkg.id||id()),time=now();await env.DB.prepare("INSERT INTO sns_packages(id,user_id,source_blog_id,topic,status,scheduled_at,data_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET topic=excluded.topic,status=excluded.status,scheduled_at=excluded.scheduled_at,data_json=excluded.data_json,updated_at=excluded.updated_at WHERE sns_packages.user_id=excluded.user_id").bind(pkgId,user!.id,pkg.sourceBlogId||null,pkg.topic||"",pkg.status||"draft",pkg.scheduledAt||null,JSON.stringify({...pkg,id:pkgId}),pkg.createdAt||time,time).run();return json({ok:true,id:pkgId});
+ }
+ if(path==="/api/sns-packages"&&method==="DELETE"){
+  const pkgId=url.searchParams.get("id");if(pkgId)await env.DB.prepare("DELETE FROM sns_packages WHERE id=? AND user_id=?").bind(pkgId,user!.id).run();return json({ok:true});
+ }
+ if(path==="/api/topic-bookmarks"&&method==="GET"){
+  const rows=await env.DB.prepare("SELECT id,data_json FROM topic_bookmarks WHERE user_id=? ORDER BY created_at DESC").bind(user!.id).all<any>();return json({topics:rows.results.map((r:any)=>({...JSON.parse(r.data_json),id:r.id}))});
+ }
+ if(path==="/api/topic-bookmarks"&&method==="POST"){
+  const b:any=await request.json(),topic=b.topic||b,topicId=String(topic.id||id());await env.DB.prepare("INSERT INTO topic_bookmarks(id,user_id,category,data_json,created_at) VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET data_json=excluded.data_json WHERE topic_bookmarks.user_id=excluded.user_id").bind(topicId,user!.id,topic.category||"travel",JSON.stringify({...topic,id:topicId}),now()).run();return json({ok:true,id:topicId});
+ }
+ if(path==="/api/topic-bookmarks"&&method==="DELETE"){
+  const topicId=url.searchParams.get("id");if(topicId)await env.DB.prepare("DELETE FROM topic_bookmarks WHERE id=? AND user_id=?").bind(topicId,user!.id).run();return json({ok:true});
+ }
  return json({error:"Not found",path},404);
 }
 export default {async fetch(request:Request,env:Env):Promise<Response>{
