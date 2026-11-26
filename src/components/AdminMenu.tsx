@@ -32,7 +32,7 @@ import {
 } from "lucide-react";
 import { BlogPost, SNSPackage, UserProfile } from "../types";
 import { savePostToFirestore, firebaseConfig } from "../lib/firebase";
-import { runDatabaseMigration } from "../lib/migration";
+
 
 interface AdminMenuProps {
   user: UserProfile | null;
@@ -125,23 +125,7 @@ export const AdminMenu: React.FC<AdminMenuProps> = ({
   });
 
   const handleManualMigration = async () => {
-    setMigrating(true);
-    setMigrationLogs([]);
-    try {
-      const res = await runDatabaseMigration((msg) => {
-        setMigrationLogs((prev) => [...prev.slice(-8), msg]);
-      });
-      if (res.success) {
-        setMigrationDone(true);
-        onShowToast(`🎉 신규 DB 마이그레이션 완료! (글 ${res.postsMigrated}편, 이미지 ${res.imagesMigrated}개)`);
-      } else {
-        onShowToast(`⚠️ 마이그레이션 실패: ${res.error}`);
-      }
-    } catch (err: any) {
-      onShowToast(`⚠️ 마이그레이션 오류: ${err?.message}`);
-    } finally {
-      setMigrating(false);
-    }
+    onShowToast("Cloudflare D1 스키마는 migrations/0001_initial.sql을 Cloudflare D1 Console 또는 Wrangler로 적용합니다. 기존 Firebase 데이터 자동 이관은 아직 별도 검증이 필요합니다.");
   };
 
   // System Logs Simulation
