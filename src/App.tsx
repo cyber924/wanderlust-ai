@@ -318,7 +318,8 @@ export default function App({ initialData }: { initialData?: InitialPageData } =
                 };
 
                 const savedId = await savePostToFirestore(newPost);
-                const finalPost = { ...newPost, id: savedId };
+                const finalPost = { ...newPost, id: savedId, status: "published" as const, isPublic: true };
+                await publishPostAtomic(finalPost);
 
                 newPostsList.push(finalPost);
                 generatedPostIds.push(savedId);
