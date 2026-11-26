@@ -398,95 +398,7 @@ export const AdminMenu: React.FC<AdminMenuProps> = ({
     runAutoReleaseEngine();
   }, [virtualTimeOffset, activeSubTab]);
 
-  // Initial reservation seeder for demonstration sandbox
-  useEffect(() => {
-    // 1. Seed Blog Reservation
-    if (savedPosts.length > 0 && !savedPosts.some(p => p.id === "post_sched_seed_1")) {
-      const targetTime1 = new Date();
-      targetTime1.setHours(targetTime1.getHours() + 2); // +2 Hours
-
-      const seedBlog: BlogPost = {
-        id: "post_sched_seed_1",
-        title: "제주 애월 노을빛 감성 미식 투어 꿀팁 🌅",
-        subtitle: "일몰이 아름다운 애월 해안가 카페 가이드",
-        destination: "제주 애월",
-        duration: "당일치기",
-        concept: "감성 카페 & 일몰 뷰 투어",
-        tone: "친근하고 감성적인 ~해요체",
-        targetAudience: "커플, 감성 투어족",
-        budget: "인당 약 4만원",
-        season: "가을 추천",
-        categoryType: "food",
-        categoryName: "맛집/카페",
-        metaKeywords: ["제주애월카페", "노을카페", "제주도해안도로"],
-        hashtags: ["애월맛집", "제주노을", "인생샷코스"],
-        itinerary: [
-          {
-            day: 1,
-            title: "애월 낙조 미식 여행",
-            activities: [
-              {
-                time: "17:00",
-                spot: "한담해안산책로",
-                description: "노을이 아름다운 해안길을 가볍게 산책하고, 바다가 보이는 카페 테라스에 자리를 잡습니다."
-              }
-            ]
-          }
-        ],
-        markdownContent: "## 애월의 붉은 노을 속으로\n\n한담해안산책로는 일몰 1시간 전부터 황금빛으로 물듭니다. 추천 장소 리스트는 테라스 자리가 구비된 로컬 카페입니다.",
-        travelTips: ["야외 전망 자리는 17시 이전 안착 필수", "공영 주차장 혼잡 시 이면 주차 이용"],
-        seoDescription: "제주 애월 한담해안산책로의 극적인 낙조 뷰 포인트와 카페 꿀팁 전수.",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        views: 0,
-        likes: 0,
-        status: "draft",
-        isReserved: true,
-        scheduledAt: targetTime1.toISOString(),
-        recurrence: "none"
-      };
-
-      setSavedPosts(prev => [seedBlog, ...prev]);
-    }
-
-    // 2. Seed SNS Reservation
-    try {
-      const stored = localStorage.getItem("wanderlust_saved_sns_packages");
-      const list: SNSPackage[] = stored ? JSON.parse(stored) : [];
-      if (list.length > 0 && !list.some(p => p.id === "sns_sched_seed_2")) {
-        const targetTime2 = new Date();
-        targetTime2.setHours(targetTime2.getHours() + 4); // +4 Hours
-
-        const seedSns: SNSPackage = {
-          id: "sns_sched_seed_2",
-          topic: "서울 가을 인생샷 단풍 숨은 명소 TOP 3 🍁",
-          category: "travel",
-          targetAudience: "2030 감성 스타그래머",
-          tone: "정겹고 힙한 느낌",
-          createdAt: new Date().toISOString(),
-          selectedPlatforms: ["instagram", "threads"],
-          isReserved: true,
-          scheduledAt: targetTime2.toISOString(),
-          recurrence: "daily_9am",
-          status: "draft",
-          instagram: {
-            caption: "🍁 서울 복판 단풍 천국! 비밀의 스팟들만 골라왔어요. 저장하고 이번 주말 달리세요!",
-            hashtags: ["가을덕수궁", "명륜당은행나무", "가을인생샷", "서울단풍길"],
-            callToAction: "가치 갈 단풍 메이트 소환하기 @tag",
-            cardSlides: [
-              { slideNumber: 1, title: "단풍 인생샷 숨은 명소", points: ["1. 덕수궁 돌담길 뒷골목", "2. 창경궁 춘당지 숲", "3. 성균관대 명륜당 대성전"] }
-            ]
-          }
-        };
-
-        const merged = [seedSns, ...list];
-        localStorage.setItem("wanderlust_saved_sns_packages", JSON.stringify(merged));
-        setSnsPackages(merged);
-      }
-    } catch (e) {
-      console.error("Reservation seed load error:", e);
-    }
-  }, [savedPosts]);
+  // Demo seed records are intentionally disabled in the Cloudflare production branch.
 
   // Main Event-driven scheduler algorithm
   const handlePublishBlogPostWithAI = async (postId: string) => {
@@ -659,7 +571,6 @@ export const AdminMenu: React.FC<AdminMenuProps> = ({
 
         setSnsPackages(prev => {
           const next = prev.map(s => s.id === pkgId ? updatedPkg : s);
-          localStorage.setItem("wanderlust_saved_sns_packages", JSON.stringify(next));
           return next;
         });
 
@@ -685,7 +596,6 @@ export const AdminMenu: React.FC<AdminMenuProps> = ({
       };
       setSnsPackages(prev => {
         const next = prev.map(s => s.id === pkgId ? fallbackPkg : s);
-        localStorage.setItem("wanderlust_saved_sns_packages", JSON.stringify(next));
         return next;
       });
 
@@ -832,7 +742,6 @@ export const AdminMenu: React.FC<AdminMenuProps> = ({
                 setSnsPackages((prev) => {
                   if (!prev.some((s) => s.id === nextScheduledPkg.id)) {
                     const next = [nextScheduledPkg, ...prev];
-                    localStorage.setItem("wanderlust_saved_sns_packages", JSON.stringify(next));
                     return next;
                   }
                   return prev;
@@ -930,7 +839,6 @@ export const AdminMenu: React.FC<AdminMenuProps> = ({
       };
 
       const updated = [newSns, ...snsPackages];
-      localStorage.setItem("wanderlust_saved_sns_packages", JSON.stringify(updated));
       setSnsPackages(updated);
     }
 
@@ -1006,7 +914,6 @@ export const AdminMenu: React.FC<AdminMenuProps> = ({
         return pkg;
       });
       setSnsPackages(updated);
-      localStorage.setItem("wanderlust_saved_sns_packages", JSON.stringify(updated));
       onShowToast("📅 SNS 패키지 예약 발행이 해제되어 일반 임시 보관함으로 복원되었습니다.");
     }
   };
@@ -1103,7 +1010,6 @@ export const AdminMenu: React.FC<AdminMenuProps> = ({
       const updated = snsPackages.filter(p => p.id !== pId);
       setSnsPackages(updated);
       try {
-        localStorage.setItem("wanderlust_saved_sns_packages", JSON.stringify(updated));
         onShowToast("🗑️ SNS 패키지가 성공적으로 영구 삭제되었습니다.");
       } catch (e) {
         console.error(e);
