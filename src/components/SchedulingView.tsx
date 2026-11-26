@@ -23,7 +23,8 @@ import {
   fetchScheduledTasksFromFirestore,
   saveScheduledTaskToFirestore,
   deleteScheduledTaskFromFirestore,
-  savePostToFirestore
+  savePostToFirestore,
+  publishPostAtomic
 } from "../lib/firebase";
 import { getRandomAutopilotTopics } from "../utils/autopilotTopics";
 
@@ -256,7 +257,8 @@ export const SchedulingView: React.FC<SchedulingViewProps> = ({
           };
 
           const savedId = await savePostToFirestore(newPost);
-          const finalPost = { ...newPost, id: savedId };
+          const finalPost = { ...newPost, id: savedId, status: "published" as const, isPublic: true };
+          await publishPostAtomic(finalPost);
 
           newPostsList.push(finalPost);
           generatedPostIds.push(savedId);
@@ -285,7 +287,7 @@ export const SchedulingView: React.FC<SchedulingViewProps> = ({
         }
         
         while (nextSched <= new Date()) {
-          nextSched.setDate(nextSched.getDate() + 1);
+          nextSched.setDate(nextSched.getDate() + (task.recurrence === "weekly_9am" ? 7 : 1));
         }
 
         // Keep topics pool fresh for the next release run
