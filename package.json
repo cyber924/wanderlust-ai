@@ -12,7 +12,8 @@
     "lint": "tsc --noEmit",
     "build:vercel": "vite build && node scripts/build-vercel.mjs",
     "test:deployment": "node --test tests/deployment.test.mjs",
-    "deploy:cloudflare": "npm run build && npx wrangler deploy"
+    "deploy:cloudflare": "npm run build && npx wrangler deploy",
+    "test:cloudflare": "node --test tests/cloudflare-migration.test.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
