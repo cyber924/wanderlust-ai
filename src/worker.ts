@@ -80,6 +80,16 @@ async function api(request:Request,env:Env,url:URL):Promise<Response>{
   try{const text=await gemini(env,`한국어 콘텐츠 전략가로서 ${category} 분야의 최신성 있는 블로그 주제 5개를 추천하세요. 각 항목을 id,title,description,keywords 배열,travelStyle,duration,icon,reason 필드로 갖는 JSON 배열만 출력하세요. 사실로 확인되지 않은 최신 사건은 단정하지 마세요.`);return json({success:true,topics:parseAIJson(text)});}
   catch(e){return json({error:e instanceof Error?e.message:"주제 추천 실패"},502);}
  }
+ if(path==="/api/templates/recommend"&&method==="POST"){
+  const b:any=await request.json(),category=String(b.category||"travel"),input=String(b.inputSearch||"");
+  const prompt=`한국어 전문 블로그 콘텐츠 전략가로서 ${category} 카테고리의 고품질 글쓰기 템플릿 6개를 추천하세요.
+사용자 검색어: ${input||"자유 추천"}
+사용자 맥락: ${b.userContext||"실용적이고 감성적인 여행·생활 콘텐츠"}
+각 추천은 구체적인 제목, 설명, 목적지/주제, 여행 스타일, 기간, 키워드, 아이콘, 추천 이유를 포함하세요. 검색량이나 실시간 순위를 확인한 것처럼 꾸며내지 말고 콘텐츠 기획 관점의 추천이라고 설명하세요.
+JSON 배열만 반환하세요. 각 객체 필드: id,title,category,destination,travelStyle,icon,description,duration,keywords(문자열 배열),reason.`;
+  try{const raw=await gemini(env,prompt),templates=parseAIJson(raw);if(!Array.isArray(templates))throw new Error("템플릿 응답 형식이 올바르지 않습니다.");return json({success:true,templates});}
+  catch(e){return json({success:false,error:e instanceof Error?e.message:"템플릿 추천 실패"},502);}
+ }
  const user=await currentUser(request,env);
  if(path.startsWith("/api/")&&!user&&["POST","PUT","PATCH","DELETE"].includes(method))return json({error:"로그인이 필요합니다."},401);
  if(path==="/api/posts"&&method==="GET"){
