@@ -76,7 +76,7 @@ export const PostList: React.FC<PostListProps> = ({
     onShowToast("🔄 실시간 최신 DB 조회 중... 잠시만 기다려 주세요.");
     try {
       await onRefreshDB();
-      onShowToast("✨ 최신 데이터베이스(Firestore)로부터 성공적으로 실시간 조회를 완료했습니다!");
+      onShowToast("✨ 최신 데이터베이스(D1)로부터 성공적으로 실시간 조회를 완료했습니다!");
     } catch (err) {
       console.error("DB Sync error:", err);
       onShowToast("❌ 실시간 조회 중 오류가 발생했습니다. DB 권한 및 연결 상태를 확인해 주세요.");
@@ -455,10 +455,10 @@ export const PostList: React.FC<PostListProps> = ({
         >
           <div className="flex items-center space-x-2">
             <ShieldAlert className="w-5 h-5 text-orange-500 animate-pulse" />
-            <h2 className="text-sm sm:text-base font-extrabold text-stone-900">파이어베이스 자가 진단 및 실시간 환경변수 검사</h2>
+            <h2 className="text-sm sm:text-base font-extrabold text-stone-900">Cloudflare 연결 진단 및 실행 환경 검사</h2>
           </div>
           <span className="text-xs text-orange-600 font-bold hover:underline">
-            {showDiagnostics ? "접기 ▲" : "진단 및 환경변수 비교 펼치기 ▼"}
+            {showDiagnostics ? "접기 ▲" : "연결 상태 및 환경 정보 펼치기 ▼"}
           </span>
         </button>
 
@@ -467,10 +467,10 @@ export const PostList: React.FC<PostListProps> = ({
             <div className="p-4 bg-orange-50/50 border border-orange-100 rounded-2xl space-y-2">
               <div className="flex items-center space-x-1.5 text-orange-800 font-bold">
                 <Info className="w-4 h-4 text-orange-500" />
-                <span>실행 환경 및 파이어베이스 연결 정보</span>
+                <span>Cloudflare Workers 실행 환경 및 D1 연결 정보</span>
               </div>
               <p className="text-stone-500 text-[11px] leading-relaxed">
-                Cloud Run과 Vercel 등 배포 주소에 따라 파이어베이스 설정이 다르게 적용되거나 환경변수가 덮어씌워지는 경우를 방지하기 위해, 웹 브라우저가 런타임에 읽어들인 실제 연결 매개변수를 노출합니다. 보안을 위하여 API 키 및 민감성 정보는 일절 노출되지 않습니다.
+                브라우저는 Cloudflare Worker API를 통해 D1에 접근합니다. Gemini API 키는 Worker Secret으로 보관되며 브라우저에 노출되지 않습니다.
               </p>
             </div>
 
@@ -479,24 +479,24 @@ export const PostList: React.FC<PostListProps> = ({
               <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4 space-y-3">
                 <h3 className="font-bold text-stone-900 flex items-center space-x-1.5 border-b border-stone-200 pb-2">
                   <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                  <span>클라이언트 환경변수 (Vite Runtime)</span>
+                  <span>Cloudflare Worker 구성</span>
                 </h3>
                 <div className="space-y-1.5 text-stone-600 font-mono text-[11px]">
                   <div className="flex justify-between py-0.5 border-b border-stone-100/50">
-                    <span className="text-stone-400">Project ID</span>
-                    <span className="font-bold text-stone-800">{firebaseConfig.projectId || "Undefined"}</span>
+                    <span className="text-stone-400">서비스</span>
+                    <span className="font-bold text-stone-800">Wanderlust AI Worker</span>
                   </div>
                   <div className="flex justify-between py-0.5 border-b border-stone-100/50">
-                    <span className="text-stone-400">Database ID</span>
-                    <span className="font-bold text-stone-800">{firebaseConfig.firestoreDatabaseId || "(default)"}</span>
+                    <span className="text-stone-400">데이터 저장소</span>
+                    <span className="font-bold text-stone-800">Cloudflare D1</span>
                   </div>
                   <div className="flex justify-between py-0.5 border-b border-stone-100/50">
-                    <span className="text-stone-400">Auth Domain</span>
-                    <span className="font-bold text-stone-800">{firebaseConfig.authDomain || "Undefined"}</span>
+                    <span className="text-stone-400">인증 방식</span>
+                    <span className="font-bold text-stone-800">HttpOnly 세션 쿠키</span>
                   </div>
                   <div className="flex justify-between py-0.5">
-                    <span className="text-stone-400">App ID</span>
-                    <span className="font-bold text-stone-800">{firebaseConfig.appId || "Undefined"}</span>
+                    <span className="text-stone-400">API 연결</span>
+                    <span className="font-bold text-stone-800">Worker /api/*</span>
                   </div>
                 </div>
               </div>
@@ -505,7 +505,7 @@ export const PostList: React.FC<PostListProps> = ({
               <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4 space-y-3">
                 <h3 className="font-bold text-stone-900 flex items-center space-x-1.5 border-b border-stone-200 pb-2">
                   <span className="w-2 h-2 rounded-full bg-orange-500"></span>
-                  <span>인증 세션 및 Firestore 상태</span>
+                  <span>인증 세션 및 D1 상태</span>
                 </h3>
                 <div className="space-y-1.5 text-stone-600 font-mono text-[11px]">
                   <div className="flex justify-between py-0.5 border-b border-stone-100/50">
@@ -523,7 +523,7 @@ export const PostList: React.FC<PostListProps> = ({
                   <div className="flex justify-between py-0.5 border-b border-stone-100/50">
                     <span className="text-stone-400">익명 로그인</span>
                     <span className="font-bold text-stone-800">
-                      {auth.currentUser ? (auth.currentUser.isAnonymous ? "Yes (익명 로그인)" : "No (구글/이메일)") : "N/A"}
+                      {auth.currentUser ? "No (이메일 계정)" : "N/A"}
                     </span>
                   </div>
                   <div className="flex justify-between py-0.5">
@@ -541,13 +541,13 @@ export const PostList: React.FC<PostListProps> = ({
               <div className="p-4 bg-rose-50 border border-rose-100 text-rose-800 rounded-2xl space-y-2">
                 <div className="flex items-center space-x-1.5 font-bold">
                   <AlertTriangle className="w-4 h-4 text-rose-500" />
-                  <span>실시간 DB 조회 에러 상세정보 (Firestore Connection Error)</span>
+                  <span>D1 데이터 조회 오류 상세정보</span>
                 </div>
                 <p className="font-mono text-[11px] leading-relaxed text-rose-700 bg-white border border-rose-100 p-3 rounded-xl overflow-x-auto">
                   {dbErrorMessage}
                 </p>
                 <p className="text-[10px] text-stone-500 leading-relaxed">
-                  💡 <strong>해결 가이드:</strong> 만약 <code>permission-denied</code> 오류가 발생할 경우, 파이어베이스 규칙(firestore.rules)에서 <code>blogs</code> 및 <code>travel_blog_posts</code> 컬렉션에 대한 읽기/쓰기 권한이 승인되어 있는지 확인하십시오. 현재 로그인 UID 상태와 Cloud Run의 설정이 Vercel 환경과 정확히 일치하는지 비교할 수 있습니다.
+                  💡 <strong>해결 가이드:</strong> 로그인 세션이 유효한지, Worker의 DB 바인딩 이름이 <code>DB</code>인지, D1 마이그레이션이 적용되었는지 확인하십시오.
                 </p>
               </div>
             )}
