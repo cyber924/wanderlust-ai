@@ -20,7 +20,7 @@ async function currentUser(request:Request,env:Env){
 const sessionCookie=(token:string,maxAge:number)=>`wl_session=${token}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${maxAge}`;
 async function gemini(env:Env,prompt:string){
  if(!env.GEMINI_API_KEY)throw new Error("GEMINI_API_KEY secret is not configured");
- const response=await fetch("https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(env.GEMINI_MODEL||"gemini-3.8-flash")}:generateContent?key="+encodeURIComponent(env.GEMINI_API_KEY),{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt}]}]})});
+ const response=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(env.GEMINI_MODEL||"gemini-3.8-flash")}:generateContent?key=${encodeURIComponent(env.GEMINI_API_KEY)}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt}]}]})});
  const data:any=await response.json();if(!response.ok)throw new Error(data?.error?.message||"Gemini request failed");
  return data?.candidates?.[0]?.content?.parts?.map((p:any)=>p.text||"").join("")||"";
 }
