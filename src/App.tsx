@@ -213,7 +213,7 @@ export default function App({ initialData }: { initialData?: InitialPageData } =
     }
   };
 
-  // Global Autopilot / Deferred Sync Engine (Checks current time vs scheduled task times)
+  // Visit-triggered deferred publishing: process overdue queue only when Scheduling is opened.
   useEffect(() => {
     let active = true;
     async function scanScheduledTasks() {
@@ -333,7 +333,7 @@ export default function App({ initialData }: { initialData?: InitialPageData } =
           if (hasSucceededAny) {
             // Update client state with all successfully generated posts
             setSavedPosts((prev) => [...newPostsList, ...prev]);
-            setToastMessage(`⏰ [예약발행 성공] 총 ${newPostsList.length}건의 기사가 백그라운드 오토파일럿으로 자동 발행되었습니다!`);
+            setToastMessage(`⏰ [예약발행 성공] 예약 페이지 접속 후 지난 예약 ${newPostsList.length}건을 처리했습니다.`);
             setTimeout(() => setToastMessage(null), 5000);
 
             // Handle recurrence or set as completed
