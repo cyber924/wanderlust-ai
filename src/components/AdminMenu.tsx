@@ -249,6 +249,9 @@ export const AdminMenu: React.FC<AdminMenuProps> = ({
       return;
     }
     let active = true;
+    setSnsArchiveLoaded(false);
+    setSnsPackages([]);
+    previousSnsIds.current = [];
     fetchSnsPackages().then((items) => {
       if (!active) return;
       previousSnsIds.current = items.map((item: SNSPackage) => item.id);
