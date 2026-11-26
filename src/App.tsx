@@ -413,7 +413,7 @@ export default function App({ initialData }: { initialData?: InitialPageData } =
     // Check if the post ID exists
     const matched = webzineArticles.some((a) => a.id === targetId);
 
-    // If Firestore has loaded and the ID is not found, it is a 404!
+    // If D1 has loaded and the ID is not found, it is a 404!
     if (isDataLoaded && !matched) {
       return true;
     }
@@ -525,7 +525,7 @@ export default function App({ initialData }: { initialData?: InitialPageData } =
         // Add to saved posts
         if (!savedPosts.some((p) => p.id === post.id)) {
           setSavedPosts((current) => [post, ...current]);
-          savePostToFirestore(post).catch((e) => console.log("Silent Firestore save:", e));
+          savePostToFirestore(post).catch((e) => console.log("Silent D1 save:", e));
         }
       }
       try {
@@ -582,7 +582,7 @@ export default function App({ initialData }: { initialData?: InitialPageData } =
       const updated = { ...postToSave, id: savedId };
       setCurrentPost(updated);
       setSavedPosts((prev) => [updated, ...prev.filter((p) => p.id !== savedId)]);
-      showToast("💾 파이어베이스 보관함에 안전하게 저장되었습니다!");
+      showToast("💾 Cloudflare D1 보관함에 안전하게 저장되었습니다!");
     } catch (err) {
       console.error(err);
       showToast("❌ 저장 중 오류가 발생했습니다.");
