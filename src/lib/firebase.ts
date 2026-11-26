@@ -42,7 +42,7 @@ export async function saveMultipleImagesToFirestore(images:GeneratedImage[]){for
 export async function fetchImagesFromFirestore(){if(!await ensureAuth())return [];const d=await api("/api/images");const images=d.images||[];localStorage.setItem(IMAGES_KEY,JSON.stringify(images));return images as GeneratedImage[];}
 export async function deleteImageFromFirestore(id:string){await api("/api/images?id="+encodeURIComponent(id),{method:"DELETE"});deleteLocalImage(id);}
 export async function clearAllImagesFromFirestore(){await api("/api/images",{method:"DELETE"});localStorage.setItem(IMAGES_KEY,"[]");}
-export async function linkImageToBlogInFirestore(imageId:string,blogId:string,blogTitle:string){const images=getLocalImages();const img=images.find(x=>x.id===imageId);if(img)await saveImageToFirestore({...img,linkedBlogId:blogId,linkedBlogTitle:blogTitle});}
+export async function linkImageToBlogInFirestore(imageId:string,blogId:string,blogTitle:string,_isCover?:boolean){const images=getLocalImages();const img=images.find(x=>x.id===imageId);if(img)await saveImageToFirestore({...img,linkedBlogId:blogId,linkedBlogTitle:blogTitle});}
 export async function saveScheduledTaskToFirestore(task:ScheduledTask){await api("/api/scheduled",{method:"POST",body:JSON.stringify({task})});}
 export async function fetchScheduledTasksFromFirestore(){if(!await ensureAuth())return [];const d=await api("/api/scheduled");return (d.tasks||[]) as ScheduledTask[];}
 export async function deleteScheduledTaskFromFirestore(id:string){await api("/api/scheduled?id="+encodeURIComponent(id),{method:"DELETE"});}
