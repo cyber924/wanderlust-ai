@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { fetchTopicBookmarks, saveTopicBookmark, deleteTopicBookmark } from "../lib/firebase";
 import {
   Sparkles,
   Newspaper,
@@ -130,23 +131,13 @@ export const PreInvestigation: React.FC<PreInvestigationProps> = ({
   const [newsArticles, setNewsArticles] = useState<NewsArticle[]>([]);
   
   // Saved bookmarks state
-  const [savedLocalTopics, setSavedLocalTopics] = useState<RecommendedTopic[]>(() => {
-    try {
-      const saved = localStorage.getItem("wanderlust_pre_saved_topics");
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  // Save bookmarks to localStorage
+  const [savedLocalTopics, setSavedLocalTopics] = useState<RecommendedTopic[]>([]);
   useEffect(() => {
-    try {
-      localStorage.setItem("wanderlust_pre_saved_topics", JSON.stringify(savedLocalTopics));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [savedLocalTopics]);
+    let active = true;
+    fetchTopicBookmarks().then((items) => { if (active) setSavedLocalTopics(items); })
+      .catch((error) => console.warn("D1 topic bookmarks:", error));
+    return () => { active = false; };
+  }, []);
 
   // Load cache on category change
   useEffect(() => {
@@ -232,14 +223,15 @@ export const PreInvestigation: React.FC<PreInvestigationProps> = ({
   }, [selectedNewsSection, activeSubTab]);
 
   // Save selected topic to local bookmarks
-  const toggleSaveTopic = (topic: RecommendedTopic) => {
-    const isAlreadySaved = savedLocalTopics.some((t) => t.title === topic.title);
-    if (isAlreadySaved) {
-      setSavedLocalTopics((prev) => prev.filter((t) => t.title !== topic.title));
-      onShowToast("🗑️ 임시저장된 주제에서 삭제되었습니다.");
+  const toggleSaveTopic = async (topic: RecommendedTopic) => {
+    const existing = savedLocalTopics.find((t) => t.title === topic.title);
+    if (existing) {
+      try { await deleteTopicBookmark(existing.id); setSavedLocalTopics((prev) => prev.filter((t) => t.id !== existing.id)); onShowToast("🗑️ 저장된 주제가 삭제되었습니다."); }
+      catch (error) { onShowToast("주제 삭제에 실패했습니다. 로그인 상태를 확인해 주세요."); }
     } else {
-      setSavedLocalTopics((prev) => [...prev, topic]);
-      onShowToast("⭐ 주제가 사전조사 임시저장소에 보관되었습니다.");
+      const saved = { ...topic, id: crypto.randomUUID(), category };
+      try { await saveTopicBookmark(saved); setSavedLocalTopics((prev) => [saved, ...prev]); onShowToast("⭐ 주제가 D1 보관함에 저장되었습니다."); }
+      catch (error) { onShowToast("주제 저장에 실패했습니다. 로그인 상태를 확인해 주세요."); }
     }
   };
 
