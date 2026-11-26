@@ -177,9 +177,13 @@ instagram:{caption,hashtags,callToAction,cardSlides}; threads:{posts}; twitterX:
   catch(e){return json({success:false,error:e instanceof Error?e.message:"SNS 생성 실패"},502);}
  }
  if((path==="/api/generate-image"||path==="/api/generate-images")&&method==="POST"){
-  const b:any=await request.json(),count=Math.min(8,Math.max(1,Number(b.count)||1)),prompt=String(b.prompt||b.destination||"travel photography");
-  const images=Array.from({length:count},(_,i)=>({id:id(),imageUrl:"https://image.pollinations.ai/prompt/"+encodeURIComponent(prompt+" cinematic high quality photography "+(i+1))+"?width=1280&height=720&nologo=true",destination:b.destination||prompt,style:b.style||"",lighting:b.lighting||"",aspectRatio:b.aspectRatio||"16:9",prompt,createdAt:now()}));
-  return json({success:true,imageUrl:images[0].imageUrl,images});
+  const b:any=await request.json(),count=path==="/api/generate-image"?1:Math.min(3,Math.max(1,Number(b.count)||1));
+  const destination=String(b.destination||b.prompt||"travel scenery"),style=String(b.style||"cinematic travel photography"),lighting=String(b.lighting||"natural light"),aspect=String(b.aspectRatio||"16:9");
+  let width=1280,height=720;if(aspect==="1:1"){width=1024;height=1024;}else if(aspect==="4:3"){width=1024;height=768;}else if(aspect==="9:16"){width=720;height=1280;}
+  let englishPrompt=String(b.prompt||destination);
+  try{const translated=await gemini(env,"Convert this travel/lifestyle image request into concise English photography keywords, max 15 words, no quotes: "+destination+"; style "+style+"; lighting "+lighting+"; details "+String(b.customDetail||""));if(translated.trim().length>5&&!/[가-힣]/.test(translated))englishPrompt=translated.trim();}catch(error){console.warn("Image prompt translation fallback",error);}
+  const images=Array.from({length:count},(_,i)=>{const prompt=englishPrompt+" "+style+" "+lighting+" high quality editorial photography variation "+(i+1);const seed=Math.floor(Math.random()*800000)+100000+i*99;const imageUrl="https://image.pollinations.ai/prompt/high%20quality%20photography%20"+encodeURIComponent(prompt.replace(/[^a-zA-Z0-9\\s,]/g,""))+"?width="+width+"&height="+height+"&seed="+seed+"&nologo=true&model=flux";return {id:id(),imageUrl,url:imageUrl,destination,style,lighting,aspectRatio:aspect,prompt,createdAt:now()};});
+  return json(path==="/api/generate-image"?{success:true,imageUrl:images[0].imageUrl}:{success:true,images});
  }
  if(path==="/api/images"&&method==="GET"){
   const rows=await env.DB.prepare("SELECT id,data_json,created_at FROM generated_images WHERE user_id=? ORDER BY created_at DESC").bind(user!.id).all<any>();return json({images:rows.results.map((r:any)=>({...JSON.parse(r.data_json),id:r.id,createdAt:r.created_at}))});
