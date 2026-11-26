@@ -127,7 +127,7 @@ export const AdminMenu: React.FC<AdminMenuProps> = ({
   });
 
   const handleManualMigration = async () => {
-    onShowToast("Cloudflare D1 스키마는 migrations/0001_initial.sql을 Cloudflare D1 Console 또는 Wrangler로 적용합니다. 기존 Firebase 데이터 자동 이관은 아직 별도 검증이 필요합니다.");
+    onShowToast("Cloudflare D1 스키마는 migrations/0001_initial.sql을 Cloudflare D1 Console 또는 Wrangler로 적용합니다. 기존 Cloudflare 데이터 자동 이관은 아직 별도 검증이 필요합니다.");
   };
 
   // System Logs Simulation
@@ -233,7 +233,7 @@ export const AdminMenu: React.FC<AdminMenuProps> = ({
     const initialLogs: SystemLog[] = [
       { id: "log_1", time: "15:10:24", level: "info", service: "AuthService", message: `사용자 로그인 성공: ${user?.email || "비로그인"}` },
       { id: "log_2", time: "15:11:05", level: "info", service: "GeminiAPI", message: "블로그 초안 생성 모델 (gemini-2.5-flash) 호출 성공 - 2.4k tokens" },
-      { id: "log_3", time: "15:11:42", level: "info", service: "Firestore", message: "travel_blog_posts 컬렉션 쿼리 수행 완료 (12 records)" },
+      { id: "log_3", time: "15:11:42", level: "info", service: "Cloudflare D1", message: "travel_blog_posts 컬렉션 쿼리 수행 완료 (12 records)" },
       { id: "log_4", time: "15:13:01", level: "warning", service: "ImageGen", message: "고해상도 이미지 생성 타임아웃 재시도 수행 (1회)" },
       { id: "log_5", time: "15:13:10", level: "info", service: "ImageGen", message: "이미지 생성 완료 및 Cloud Storage 저장: img_9348.png" },
     ];
@@ -268,7 +268,7 @@ export const AdminMenu: React.FC<AdminMenuProps> = ({
   useEffect(() => {
     if (dashboardStyle !== "system") return;
 
-    const services = ["GeminiAPI", "Firestore", "AuthService", "ImageGen", "SystemController"];
+    const services = ["GeminiAPI", "Cloudflare D1", "AuthService", "ImageGen", "SystemController"];
     const infoMsgs = [
       "블로그 카테고리 색인 인덱스 자동 업데이트 완료",
       "사용자 보관함 캐시 싱크 동기화 성공",
@@ -278,7 +278,7 @@ export const AdminMenu: React.FC<AdminMenuProps> = ({
     ];
     const warnMsgs = [
       "API 요청 속도 제한(Rate Limit) 임계치 85% 도달",
-      "Firebase 연결 대기 시간 지연 (1.2s)",
+      "Cloudflare Worker 응답 대기 지연 (1.2s)",
       "비정상적 다중 조회수 수치 변동 모니터링 경고",
     ];
 
@@ -310,7 +310,7 @@ export const AdminMenu: React.FC<AdminMenuProps> = ({
           time: timeStr,
           level: "error",
           service: "DatabaseGate",
-          message: "Firestore 쓰기 권한 충돌 경고 - 즉각 수동 조치됨",
+          message: "D1 쓰기 권한 충돌 경고 - 즉각 수동 조치됨",
         };
       }
 
@@ -963,7 +963,7 @@ export const AdminMenu: React.FC<AdminMenuProps> = ({
   };
 
   const handleDeletePostAdmin = async (post: BlogPost) => {
-    if (confirm(`🚫 [관리자 권한] '${post.title}' 게시글을 Firestore DB 및 웹진에서 완전히 영구 삭제하시겠습니까?`)) {
+    if (confirm(`🚫 [관리자 권한] '${post.title}' 게시글을 D1 및 웹진에서 완전히 영구 삭제하시겠습니까?`)) {
       // Remove from memory
       setSavedPosts(prev => prev.filter(p => p.id !== post.id));
       setWebzineArticles(prev => prev.filter(p => p.id !== post.id));
@@ -971,7 +971,7 @@ export const AdminMenu: React.FC<AdminMenuProps> = ({
       try {
         const { deletePostFromFirestore } = await import("../lib/firebase");
         await deletePostFromFirestore(post.id);
-        onShowToast("🗑️ 파이어베이스 Firestore에서 문서를 완벽하게 강제 영구 삭제했습니다.");
+        onShowToast("🗑️ Cloudflare D1에서 문서를 완벽하게 강제 영구 삭제했습니다.");
       } catch (e) {
         console.error(e);
         onShowToast("로컬 메모리에서 게시글을 성공적으로 제거했습니다.");
@@ -1112,7 +1112,7 @@ export const AdminMenu: React.FC<AdminMenuProps> = ({
             </button>
           )}
           <button
-            onClick={() => onShowToast("🔄 전체 Firestore 동적 자산 캐시가 강제 갱신되었습니다.")}
+            onClick={() => onShowToast("🔄 전체 D1 데이터 캐시가 강제 갱신되었습니다.")}
             className="flex items-center space-x-1 px-3.5 py-2 bg-stone-900 hover:bg-black text-white rounded-xl text-xs font-bold transition-all shadow-xs"
           >
             <RefreshCw className="w-3.5 h-3.5" />
@@ -1215,13 +1215,13 @@ export const AdminMenu: React.FC<AdminMenuProps> = ({
             </button>
           </div>
 
-          {/* Dedicated Firebase Migration & Quota Independence Banner */}
+          {/* Dedicated Cloudflare D1 & Worker Status Banner */}
           <div className="bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden">
             <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="space-y-1.5">
                 <div className="flex items-center space-x-2">
                   <span className="px-2.5 py-0.5 rounded-full bg-white/20 text-white text-[11px] font-black uppercase tracking-wider backdrop-blur-xs">
-                    단독 전용 Firebase DB 연결됨
+                    Cloudflare Workers + D1 연결
                   </span>
                   <span className="flex h-2 w-2 relative">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75"></span>
@@ -1615,7 +1615,7 @@ export const AdminMenu: React.FC<AdminMenuProps> = ({
                     <span className="text-stone-400">데이터베이스 엔진</span>
                     <span className="text-emerald-600 font-extrabold flex items-center space-x-1">
                       <span className="w-2 h-2 bg-emerald-500 rounded-full inline-block animate-ping" />
-                      <span>Enterprise Firestore</span>
+                      <span>Cloudflare D1</span>
                     </span>
                   </div>
 
@@ -2010,7 +2010,7 @@ export const AdminMenu: React.FC<AdminMenuProps> = ({
                             <button
                               onClick={() => handleDeletePostAdmin(b)}
                               className="p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-100 rounded-lg inline-block align-middle transition-all"
-                              title="Firestore 영구 강제 삭제"
+                              title="D1 영구 강제 삭제"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
