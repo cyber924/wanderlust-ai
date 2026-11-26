@@ -27,29 +27,29 @@ export function getLocalImages():GeneratedImage[]{try{return JSON.parse(localSto
 export function saveLocalImage(img:GeneratedImage){const rows=getLocalImages(),i=rows.findIndex(x=>x.id===img.id);if(i>=0)rows[i]=img;else rows.unshift(img);localStorage.setItem(IMAGES_KEY,JSON.stringify(rows));}
 export function deleteLocalImage(id:string){localStorage.setItem(IMAGES_KEY,JSON.stringify(getLocalImages().filter(x=>x.id!==id)));}
 export function mapDocToBlogPost(id:string,data:any):BlogPost{return {...data,id};}
-export async function savePostToFirestore(post:Omit<BlogPost,"id">&{id?:string}){const full={...post,id:post.id||crypto.randomUUID()};await api("/api/posts",{method:"POST",body:JSON.stringify({post:full})});saveLocalPost(full as BlogPost);return full.id;}
-export async function fetchPostsFromFirestore(){const d=await api("/api/posts");const posts=d.posts||[];localStorage.setItem(POSTS_KEY,JSON.stringify(posts));return posts as BlogPost[];}
+export async function savePostToFirestore(post:Omit<BlogPost,"id">&{id?:string}){const full={...post,id:post.id||crypto.randomUUID(),status:"draft" as const,isPublic:false};await api("/api/posts",{method:"POST",body:JSON.stringify({post:full})});saveLocalPost(full as BlogPost);return full.id;}
+export async function fetchPostsFromFirestore(){if(!await ensureAuth())return [];const d=await api("/api/posts");const posts=d.posts||[];localStorage.setItem(POSTS_KEY,JSON.stringify(posts));return posts as BlogPost[];}
 export async function fetchBlogsFromServer(){return fetchPostsFromFirestore();}
 export async function fetchPublishedPostsFromServer(){const d=await api("/api/posts/published");return (d.posts||[]) as BlogPost[];}
 export async function deletePostFromFirestore(id:string){await api("/api/posts?id="+encodeURIComponent(id),{method:"DELETE"});deleteLocalPost(id);}
 export async function publishPostAtomic(post:BlogPost){await api("/api/posts",{method:"POST",body:JSON.stringify({post:{...post,status:"published",isPublic:true}})});}
 export async function unpublishPostAtomic(id:string){const post=getLocalPosts().find(p=>p.id===id);if(post)await api("/api/posts",{method:"POST",body:JSON.stringify({post:{...post,status:"draft",isPublic:false}})});}
-export function subscribeToBlogs(onNext:(posts:BlogPost[])=>void,onError:(err:any)=>void){let active=true;const load=()=>fetchPostsFromFirestore().then(v=>{if(active)onNext(v)}).catch(e=>{if(active)onError(e)});load();const timer=setInterval(load,60000);return()=>{active=false;clearInterval(timer)};}
+export function subscribeToBlogs(onNext:(posts:BlogPost[])=>void,onError:(err:any)=>void){let active=true;if(!currentUser){onNext([]);return()=>{active=false;};}const load=()=>fetchPostsFromFirestore().then(v=>{if(active)onNext(v)}).catch(e=>{if(active)onError(e)});load();const timer=setInterval(load,60000);return()=>{active=false;clearInterval(timer)};}
 export function subscribeToPublishedPosts(onNext:(posts:BlogPost[])=>void,onError:(err:any)=>void){let active=true;const load=()=>fetchPublishedPostsFromServer().then(v=>{if(active)onNext(v)}).catch(e=>{if(active)onError(e)});load();const timer=setInterval(load,60000);return()=>{active=false;clearInterval(timer)};}
 export async function checkFirestoreConnection(){try{await api("/api/health");return true}catch{return false;}}
 export async function saveImageToFirestore(img:GeneratedImage){const d=await api("/api/images",{method:"POST",body:JSON.stringify({image:img})});saveLocalImage({...img,id:d.id});return d.id;}
 export async function saveMultipleImagesToFirestore(images:GeneratedImage[]){for(const img of images)await saveImageToFirestore(img);}
-export async function fetchImagesFromFirestore(){const d=await api("/api/images");const images=d.images||[];localStorage.setItem(IMAGES_KEY,JSON.stringify(images));return images as GeneratedImage[];}
+export async function fetchImagesFromFirestore(){if(!await ensureAuth())return [];const d=await api("/api/images");const images=d.images||[];localStorage.setItem(IMAGES_KEY,JSON.stringify(images));return images as GeneratedImage[];}
 export async function deleteImageFromFirestore(id:string){await api("/api/images?id="+encodeURIComponent(id),{method:"DELETE"});deleteLocalImage(id);}
 export async function clearAllImagesFromFirestore(){await api("/api/images",{method:"DELETE"});localStorage.setItem(IMAGES_KEY,"[]");}
 export async function linkImageToBlogInFirestore(imageId:string,blogId:string,blogTitle:string){const images=getLocalImages();const img=images.find(x=>x.id===imageId);if(img)await saveImageToFirestore({...img,linkedBlogId:blogId,linkedBlogTitle:blogTitle});}
 export async function saveScheduledTaskToFirestore(task:ScheduledTask){await api("/api/scheduled",{method:"POST",body:JSON.stringify({task})});}
-export async function fetchScheduledTasksFromFirestore(){const d=await api("/api/scheduled");return (d.tasks||[]) as ScheduledTask[];}
+export async function fetchScheduledTasksFromFirestore(){if(!await ensureAuth())return [];const d=await api("/api/scheduled");return (d.tasks||[]) as ScheduledTask[];}
 export async function deleteScheduledTaskFromFirestore(id:string){await api("/api/scheduled?id="+encodeURIComponent(id),{method:"DELETE"});}
-export async function fetchSnsPackages(){const d=await api("/api/sns-packages");return d.packages||[];}
+export async function fetchSnsPackages(){if(!await ensureAuth())return [];const d=await api("/api/sns-packages");return d.packages||[];}
 export async function saveSnsPackage(pkg:any){return api("/api/sns-packages",{method:"POST",body:JSON.stringify({package:pkg})});}
 export async function deleteSnsPackage(id:string){return api("/api/sns-packages?id="+encodeURIComponent(id),{method:"DELETE"});}
-export async function fetchTopicBookmarks(){const d=await api("/api/topic-bookmarks");return d.topics||[];}
+export async function fetchTopicBookmarks(){if(!await ensureAuth())return [];const d=await api("/api/topic-bookmarks");return d.topics||[];}
 export async function saveTopicBookmark(topic:any){return api("/api/topic-bookmarks",{method:"POST",body:JSON.stringify({topic})});}
 export async function deleteTopicBookmark(id:string){return api("/api/topic-bookmarks?id="+encodeURIComponent(id),{method:"DELETE"});}
 
