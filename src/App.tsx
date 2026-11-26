@@ -350,7 +350,7 @@ export default function App({ initialData }: { initialData?: InitialPageData } =
               }
 
               while (nextSched <= new Date()) {
-                nextSched.setDate(nextSched.getDate() + 1);
+                nextSched.setDate(nextSched.getDate() + (task.recurrence === "weekly_9am" ? 7 : 1));
               }
 
               const nextTopics = getRandomAutopilotTopics(task.categoryType, totalToGenerate);
