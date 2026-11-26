@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   BarChart3,
   Users2,
@@ -31,7 +31,7 @@ import {
   Clock
 } from "lucide-react";
 import { BlogPost, SNSPackage, UserProfile } from "../types";
-import { savePostToFirestore, firebaseConfig } from "../lib/firebase";
+import { savePostToFirestore, firebaseConfig, fetchSnsPackages, saveSnsPackage, deleteSnsPackage } from "../lib/firebase";
 
 
 interface AdminMenuProps {
@@ -115,6 +115,8 @@ export const AdminMenu: React.FC<AdminMenuProps> = ({
   
   // SNS Saved Archive State (loaded from localStorage)
   const [snsPackages, setSnsPackages] = useState<SNSPackage[]>([]);
+  const [snsArchiveLoaded, setSnsArchiveLoaded] = useState(false);
+  const previousSnsIds = useRef<string[]>([]);
   const [selectedSnsPackage, setSelectedSnsPackage] = useState<SNSPackage | null>(null);
 
   // Migration states
@@ -237,16 +239,30 @@ export const AdminMenu: React.FC<AdminMenuProps> = ({
     ];
     setSystemLogs(initialLogs);
 
-    // Load SNS Packages from LocalStorage
-    try {
-      const stored = localStorage.getItem("wanderlust_saved_sns_packages");
-      if (stored) {
-        setSnsPackages(JSON.parse(stored));
-      }
-    } catch (e) {
-      console.error(e);
+    // Load account-scoped SNS archive from Cloudflare D1
+    if (user) {
+      fetchSnsPackages().then((items) => {
+        previousSnsIds.current = items.map((item: SNSPackage) => item.id);
+        setSnsPackages(items);
+        setSnsArchiveLoaded(true);
+      }).catch((error) => console.error("D1 SNS archive load failed:", error));
+    } else {
+      setSnsPackages([]);
+      previousSnsIds.current = [];
+      setSnsArchiveLoaded(false);
     }
-  }, [savedPosts, user]);
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (!snsArchiveLoaded || !user) return;
+    const nextIds = snsPackages.map((item) => item.id);
+    const removedIds = previousSnsIds.current.filter((id) => !nextIds.includes(id));
+    previousSnsIds.current = nextIds;
+    Promise.all([
+      ...snsPackages.map((item) => saveSnsPackage(item)),
+      ...removedIds.map((id) => deleteSnsPackage(id)),
+    ]).catch((error) => console.error("D1 SNS archive sync failed:", error));
+  }, [snsPackages, snsArchiveLoaded, user?.uid]);
 
   // Periodic Log Generator to make System Dashboard live!
   useEffect(() => {
