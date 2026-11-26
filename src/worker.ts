@@ -1,6 +1,7 @@
 export interface Env {
   DB: D1Database;
   GEMINI_API_KEY?: string;
+  GEMINI_MODEL?: string;
   ASSETS: Fetcher;
 }
 const json=(data:unknown,status=200,headers:Record<string,string>={})=>new Response(JSON.stringify(data),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store",...headers}});
@@ -22,6 +23,13 @@ async function gemini(env:Env,prompt:string){
  const response=await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key="+encodeURIComponent(env.GEMINI_API_KEY),{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt}]}]})});
  const data:any=await response.json();if(!response.ok)throw new Error(data?.error?.message||"Gemini request failed");
  return data?.candidates?.[0]?.content?.parts?.map((p:any)=>p.text||"").join("")||"";
+}
+function parseAIJson(raw:string):any{
+ const clean=raw.replace(/```(?:json)?/gi,"").trim();
+ const objectAt=clean.indexOf("{"),arrayAt=clean.indexOf("[");
+ const start=objectAt<0?arrayAt:arrayAt<0?objectAt:Math.min(objectAt,arrayAt);
+ if(start<0)throw new Error("AI 응답에서 JSON을 찾을 수 없습니다.");
+ return JSON.parse(clean.slice(start));
 }
 const NEWS:Record<string,string>={"": "",BUSINESS:"BUSINESS",LIFESTYLE:"LIFESTYLE",ENTERTAINMENT:"ENTERTAINMENT",SPORTS:"SPORTS",TECHNOLOGY:"TECHNOLOGY"};
 function xmlText(s:string){return s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,"$1").replace(/<[^>]+>/g,"").replace(/&amp;/g,"&").replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&lt;/g,"<").replace(/&gt;/g,">").trim();}
@@ -113,12 +121,12 @@ async function api(request:Request,env:Env,url:URL):Promise<Response>{
 
  if(path==="/api/generate-blog"&&method==="POST"){
   const b:any=await request.json();if(!b.destination)return json({error:"주제를 입력해 주세요."},400);
-  try{const raw=await gemini(env,"한국어 전문 블로그 에디터로서 "+b.destination+" 주제로 1500자 이상의 실용적인 블로그를 작성하세요. 유형 "+(b.categoryType||"travel")+". 기간 "+(b.duration||"")+". 스타일 "+(b.travelStyle||"")+". 키워드 "+(b.keywords||[]).join(",")+". 반드시 JSON 객체만 반환하고 title,subtitle,destination,duration,concept,tone,targetAudience,budget,season,metaKeywords(배열),hashtags(배열),itinerary(배열),markdownContent,travelTips(배열),seoDescription 필드를 포함하세요.");const data=JSON.parse(raw);return json({success:true,data});}
+  try{const raw=await gemini(env,"한국어 전문 블로그 에디터로서 "+b.destination+" 주제로 1500자 이상의 실용적인 블로그를 작성하세요. 유형 "+(b.categoryType||"travel")+". 기간 "+(b.duration||"")+". 스타일 "+(b.travelStyle||"")+". 키워드 "+(b.keywords||[]).join(",")+". 반드시 JSON 객체만 반환하고 title,subtitle,destination,duration,concept,tone,targetAudience,budget,season,metaKeywords(배열),hashtags(배열),itinerary(배열),markdownContent,travelTips(배열),seoDescription 필드를 포함하세요.");const data=parseAIJson(raw);return json({success:true,data});}
   catch(e){return json({success:false,error:e instanceof Error?e.message:"블로그 생성 실패"},502);}
  }
  if(path==="/api/generate-sns"&&method==="POST"){
   const b:any=await request.json();if(!b.topic)return json({error:"SNS 주제를 입력해 주세요."},400);
-  try{const raw=await gemini(env,"한국어 SNS 전문 에디터. 주제 "+b.topic+". 대상 "+(b.targetAudience||"")+". 톤 "+(b.tone||"")+". 키워드 "+(b.keywords||[]).join(",")+". 원문 "+String(b.sourceContent||"").slice(0,5000)+". 플랫폼 "+(b.selectedPlatforms||[]).join(",")+". JSON 객체만 반환. topic,category,targetAudience,tone,selectedPlatforms 필드와 각 선택 플랫폼의 구조화 결과를 작성하세요. instagram:{caption,hashtags,callToAction,cardSlides:[{slideNumber,badge,title,subtitle,points,footerNote,imagePrompt}]}; threads:{posts}; twitterX:{tweet}; metaFacebook:{post}; shortform:{title,hook,totalDurationSec,scenes:[{sceneNumber,timeRange,visualDirection,onScreenText,spokenScript}]}");const data=JSON.parse(raw);return json({success:true,data:{...data,id:id(),createdAt:now()}});}
+  try{const raw=await gemini(env,"한국어 SNS 전문 에디터. 주제 "+b.topic+". 대상 "+(b.targetAudience||"")+". 톤 "+(b.tone||"")+". 키워드 "+(b.keywords||[]).join(",")+". 원문 "+String(b.sourceContent||"").slice(0,5000)+". 플랫폼 "+(b.selectedPlatforms||[]).join(",")+". JSON 객체만 반환. topic,category,targetAudience,tone,selectedPlatforms 필드와 각 선택 플랫폼의 구조화 결과를 작성하세요. instagram:{caption,hashtags,callToAction,cardSlides:[{slideNumber,badge,title,subtitle,points,footerNote,imagePrompt}]}; threads:{posts}; twitterX:{tweet}; metaFacebook:{post}; shortform:{title,hook,totalDurationSec,scenes:[{sceneNumber,timeRange,visualDirection,onScreenText,spokenScript}]}");const data=parseAIJson(raw);return json({success:true,data:{...data,id:id(),createdAt:now()}});}
   catch(e){return json({success:false,error:e instanceof Error?e.message:"SNS 생성 실패"},502);}
  }
  if((path==="/api/generate-image"||path==="/api/generate-images")&&method==="POST"){
