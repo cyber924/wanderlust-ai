@@ -318,7 +318,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
             <p className="text-center text-[10px] text-stone-400">현재 Cloudflare 이메일 인증을 사용합니다. Google OAuth는 별도 연동 후 제공됩니다.</p>
 
-}
           </div>
         )}
       </div>
