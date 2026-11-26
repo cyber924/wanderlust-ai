@@ -1,0 +1,19 @@
+name = "wanderlust-ai"
+main = "src/worker.ts"
+compatibility_date = "2026-11-26"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "wanderlust-ai-db"
+database_id = "REPLACE_WITH_CLOUDFLARE_D1_DATABASE_ID"
+migrations_dir = "migrations"
+
+[vars]
+APP_TIMEZONE = "Asia/Seoul"
+GEMINI_MODEL = "gemini-3.8-flash"
