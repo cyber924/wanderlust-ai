@@ -272,7 +272,7 @@ export const SchedulingView: React.FC<SchedulingViewProps> = ({
         setSavedPosts((prev) => [...newPostsList, ...prev]);
       }
 
-      // Update scheduled task in Firestore depending on recurrence
+      // Update scheduled task in D1 depending on recurrence
       if (task.recurrence && task.recurrence !== "none") {
         const nextSched = new Date(task.scheduledAt);
         if (task.recurrence === "daily_8am") {
@@ -590,7 +590,7 @@ export const SchedulingView: React.FC<SchedulingViewProps> = ({
             {isLoading ? (
               <div className="flex flex-col items-center justify-center py-16 text-center space-y-3">
                 <RefreshCw className="w-8 h-8 text-orange-500 animate-spin" />
-                <p className="text-xs text-stone-400 font-bold">실시간 파이어베이스 DB 예약 큐 수집 중...</p>
+                <p className="text-xs text-stone-400 font-bold">Cloudflare D1 예약 큐 확인 중...</p>
               </div>
             ) : tasks.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center space-y-4 border border-dashed border-stone-200 rounded-2xl">
