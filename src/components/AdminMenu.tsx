@@ -239,18 +239,23 @@ export const AdminMenu: React.FC<AdminMenuProps> = ({
     ];
     setSystemLogs(initialLogs);
 
-    // Load account-scoped SNS archive from Cloudflare D1
-    if (user) {
-      fetchSnsPackages().then((items) => {
-        previousSnsIds.current = items.map((item: SNSPackage) => item.id);
-        setSnsPackages(items);
-        setSnsArchiveLoaded(true);
-      }).catch((error) => console.error("D1 SNS archive load failed:", error));
-    } else {
+  }, [savedPosts, user?.uid]);
+
+  useEffect(() => {
+    if (!user) {
       setSnsPackages([]);
       previousSnsIds.current = [];
       setSnsArchiveLoaded(false);
+      return;
     }
+    let active = true;
+    fetchSnsPackages().then((items) => {
+      if (!active) return;
+      previousSnsIds.current = items.map((item: SNSPackage) => item.id);
+      setSnsPackages(items);
+      setSnsArchiveLoaded(true);
+    }).catch((error) => console.error("D1 SNS archive load failed:", error));
+    return () => { active = false; };
   }, [user?.uid]);
 
   useEffect(() => {
