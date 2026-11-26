@@ -52,3 +52,5 @@ export async function deleteSnsPackage(id:string){return api("/api/sns-packages?
 export async function fetchTopicBookmarks(){const d=await api("/api/topic-bookmarks");return d.topics||[];}
 export async function saveTopicBookmark(topic:any){return api("/api/topic-bookmarks",{method:"POST",body:JSON.stringify({topic})});}
 export async function deleteTopicBookmark(id:string){return api("/api/topic-bookmarks?id="+encodeURIComponent(id),{method:"DELETE"});}
+
+export async function claimDueScheduledTasks(){const d=await api("/api/scheduled/due",{method:"POST",body:"{}"});return (d.tasks||[]) as ScheduledTask[];}
