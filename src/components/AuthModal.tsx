@@ -48,8 +48,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setError("이메일과 비밀번호를 모두 입력해 주세요.");
       return;
     }
-    if (mode === "signup" && password.length < 6) {
-      setError("비밀번호는 최소 6자 이상이어야 합니다.");
+    if (mode === "signup" && password.length < 8) {
+      setError("비밀번호는 최소 8자 이상이어야 합니다.");
       return;
     }
 
@@ -116,14 +116,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "구글 로그인 실패. 가상 체험 계정으로 로그인합니다.");
-      setUser({
-        uid: "demo_user_123",
-        email: "traveler@wanderlust.ai",
-        displayName: "체험 사용자",
-        photoURL: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80",
-      });
-      setTimeout(() => onClose(), 1200);
+      setError(err.message || "Google 로그인을 사용할 수 없습니다. 이메일 로그인을 이용해 주세요.");
     } finally {
       setLoading(false);
     }
@@ -185,7 +178,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <p className="text-xs text-stone-500 truncate">{user.email || "이메일 없음"}</p>
                 <p className="text-[10px] text-orange-600 font-semibold flex items-center gap-1 pt-0.5">
                   <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                  Firebase Auth 인증됨
+                  Cloudflare 인증됨
                 </p>
               </div>
             </div>
@@ -193,10 +186,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <div className="bg-stone-50 border border-stone-200/80 p-4 rounded-2xl text-xs space-y-2 text-stone-600">
               <div className="flex items-center justify-between font-semibold text-stone-800">
                 <span>연동된 서비스:</span>
-                <span className="text-orange-600">Firebase Firestore & Auth</span>
+                <span className="text-orange-600">Cloudflare Workers & D1</span>
               </div>
               <p className="text-[11px] text-stone-500">
-                생성한 모든 블로그 글은 파이어베이스 Firestore DB에 실시간으로 안전하게 동기화 저장됩니다.
+                생성한 모든 블로그 글은 Cloudflare D1 데이터베이스에 실시간으로 안전하게 동기화 저장됩니다.
               </p>
             </div>
 
@@ -296,7 +289,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder={mode === "signup" ? "비밀번호 (6자리 이상)" : "비밀번호"}
+                    placeholder={mode === "signup" ? "비밀번호 (8자리 이상)" : "비밀번호"}
                     className="w-full pl-9 pr-3 py-2.5 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
                   />
                 </div>
@@ -323,44 +316,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </button>
             </form>
 
-            <div className="relative flex items-center justify-center pt-2">
-              <div className="border-t border-stone-200 w-full absolute" />
-              <span className="bg-white px-2 text-[10px] text-stone-400 relative font-medium">
-                또는
-              </span>
-            </div>
+            <p className="text-center text-[10px] text-stone-400">현재 Cloudflare 이메일 인증을 사용합니다. Google OAuth는 별도 연동 후 제공됩니다.</p>
 
-            <button
-              type="button"
-              onClick={handleGoogleLogin}
-              disabled={loading}
-              className="w-full py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-2xl font-bold text-xs transition-all flex items-center justify-center space-x-2"
-            >
-              <User className="w-4 h-4 text-orange-500" />
-              <span>Google 계정으로 계속하기</span>
-            </button>
-
-            {mode === "login" && (
-              <div className="mt-4 p-3.5 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-2 text-left">
-                <p className="text-[10px] text-amber-800 font-extrabold flex items-center space-x-1">
-                  <Shield className="w-3 h-3 text-amber-600 fill-amber-500/15" />
-                  <span>[테스터 전용] 관리자 계정 빠른 입력</span>
-                </p>
-                <p className="text-[10px] text-stone-500 leading-normal font-medium">
-                  지정 관리자 계정(<span className="font-bold text-stone-800">cyber924@naver.com</span>)으로 양식을 자동 채우려면 아래를 클릭해 주세요.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEmail("cyber924@naver.com");
-                    setPassword("123456");
-                  }}
-                  className="w-full bg-white hover:bg-stone-50 text-stone-800 border border-amber-200 py-1.5 rounded-xl text-[10px] font-extrabold transition-colors shadow-2xs"
-                >
-                  cyber924@naver.com 자동 채우기 ⚡
-                </button>
-              </div>
-            )}
+}
           </div>
         )}
       </div>
